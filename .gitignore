@@ -2,3 +2,5 @@
 .mcp.json
 skills-lock.json
 frontend/.vscode/
+.env.local
+.env
