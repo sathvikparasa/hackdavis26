@@ -7,7 +7,9 @@ from app.models import (
     SpreadMethod,
     SpreadRequest,
     SpreadResponse,
+    Location,
 )
+from app.services.water import score_water_flow
 from app.services.weather import get_current_weather
 
 
@@ -84,6 +86,24 @@ def _score_field(
             matched_methods.append(SpreadMethod.wind)
             score_parts.append(wind_score)
             reasons.append("Field is aligned with current wind conditions")
+
+    if SpreadMethod.water in request.analysis.spread_methods:
+        water_match = score_water_flow(
+            source_location=Location(
+                latitude=request.source.latitude,
+                longitude=request.source.longitude,
+            ),
+            farm_location=Location(latitude=field.latitude, longitude=field.longitude),
+            flow_paths=request.water_flow_paths,
+            max_travel_hours=request.analysis.water_travel_hours,
+        )
+        if water_match is not None:
+            matched_methods.append(SpreadMethod.water)
+            score_parts.append(water_match.risk_score)
+            reasons.append(
+                "Field is downstream through connected water flow "
+                f"within {water_match.travel_hours:.1f} hours"
+            )
 
     if not score_parts:
         return None
