@@ -17,17 +17,39 @@ def get_candidate_fields(
         raise RuntimeError("Missing SUPABASE_DB_URL")
 
     sql = """
+    with field_points as (
+      select
+        id,
+        coalesce(unique_id, 'field_' || id::text) as name,
+        coalesce(main_crop, 'unknown') as crop_type,
+        coalesce(
+          case
+            when label_point ? 'longitude' and label_point ? 'latitude'
+            then st_setsrid(
+              st_makepoint(
+                (label_point->>'longitude')::double precision,
+                (label_point->>'latitude')::double precision
+              ),
+              4326
+            )
+          end,
+          st_setsrid(st_pointonsurface(geometry), 4326)
+        ) as point
+      from public.fields
+      where geometry is not null
+        or (label_point ? 'longitude' and label_point ? 'latitude')
+    )
     select
       id::text,
-      coalesce(unique_id, 'field_' || id::text) as name,
-      coalesce(main_crop, 'unknown') as crop_type,
-      st_y(st_pointonsurface(geometry)) as latitude,
-      st_x(st_pointonsurface(geometry)) as longitude
-    from public.fields
-    where geometry is not null
+      name,
+      crop_type,
+      st_y(point) as latitude,
+      st_x(point) as longitude
+    from field_points
+    where point is not null
       and st_dwithin(
         st_setsrid(st_makepoint(%s, %s), 4326)::geography,
-        st_setsrid(st_pointonsurface(geometry), 4326)::geography,
+        point::geography,
         %s
       );
     """

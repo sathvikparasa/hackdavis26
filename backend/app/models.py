@@ -11,6 +11,7 @@ class SpreadMethod(str, Enum):
 
 
 class VulnerableCrop(BaseModel):
+    crop_type: str
     damage_type: str
     duration: int
     recommendations: str
@@ -55,6 +56,7 @@ class SpreadSource(BaseModel):
 
 class SpreadAnalysis(BaseModel):
     spread_methods: List[SpreadMethod]
+    vulnerable_crop: List[VulnerableCrop] = Field(default_factory=list)
     travel_distance: float
     pest_name: str
     confidence: float
