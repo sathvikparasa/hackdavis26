@@ -16,6 +16,29 @@ class VulnerableCrop(BaseModel):
     recommendations: str
 
 
+class Location(BaseModel):
+    latitude: float = Field(..., ge=-90, le=90, examples=[38.5449])
+    longitude: float = Field(..., ge=-180, le=180, examples=[-121.7405])
+
+
+class AnalysisRequest(BaseModel):
+    image_url: str | None = Field(
+        default=None,
+        examples=["https://example.com/pest-image.jpg"],
+    )
+    image_base64: str | None = Field(default=None)
+    location: Location
+    crop_type: str | None = Field(default=None, examples=["tomato"])
+
+
+class WeatherContext(BaseModel):
+    temperature_2m: float
+    relative_humidity_2m: float
+    wind_speed_10m: float
+    wind_direction_10m: float
+    precipitation: float
+
+
 class AnalysisResponse(BaseModel):
     spread_methods: List[SpreadMethod]
     vulnerable_crop: List[VulnerableCrop]

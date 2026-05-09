@@ -2,8 +2,16 @@ from typing import Optional
 
 from fastapi import FastAPI, File, Form, UploadFile
 
-from app.models import AnalysisResponse, StatusResponse
+from app.models import (
+    AnalysisRequest,
+    AnalysisResponse,
+    StatusResponse,
+    WeatherContext,
+)
 from app.services.analysis import analyze_report as analyze_report_service
+from app.services.weather_analysis import (
+    get_report_weather_context as get_report_weather_context_service,
+)
 from app.services.reports import submit_report as submit_report_service
 from app.services.spread import calculate_spread as calculate_spread_service
 
@@ -38,6 +46,12 @@ async def analyze_report(
     )
 
 
+@app.post("/weather/analysis", response_model=WeatherContext)
+def get_report_weather_context(request: AnalysisRequest) -> WeatherContext:
+    return get_report_weather_context_service(request)
+
+
 @app.post("/spread")
 def calculate_spread() -> StatusResponse:
     return calculate_spread_service()
+

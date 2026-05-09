@@ -5,3 +5,4 @@ python-dotenv
 python-multipart
 google-genai
 psycopg[binary]
+httpx==0.28.1
