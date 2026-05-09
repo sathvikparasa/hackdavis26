@@ -10,11 +10,10 @@ import {
   TextInput,
   View,
 } from 'react-native'
-import { SvgUri } from 'react-native-svg'
+import { SvgXml } from 'react-native-svg'
 
+import { MFA_SVG, SIGNUP_SVG } from '@/lib/svg-assets'
 import { upsertProfile } from '@/lib/supabase'
-
-const IMG_MFA_ILLUSTRATION = 'https://www.figma.com/api/mcp/asset/cb069a78-3950-4d1a-9064-d7e5f8e08653'
 
 const DIGIT_COUNT = 6
 
@@ -78,6 +77,10 @@ export default function SignUpScreen() {
   if (pendingVerification) {
     return (
       <View style={styles.container}>
+        <View style={styles.illustrationContainer} pointerEvents="none">
+          <SvgXml xml={MFA_SVG} width={298} height={186} />
+        </View>
+
         <Text style={styles.appTitle}>ANTICIPATE</Text>
 
         <View style={styles.mfaContent}>
@@ -121,16 +124,16 @@ export default function SignUpScreen() {
             </Pressable>
           </View>
         </View>
-
-        <View style={styles.illustrationContainer} pointerEvents="none">
-          <SvgUri uri={IMG_MFA_ILLUSTRATION} width={298} height={186} />
-        </View>
       </View>
     )
   }
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={styles.illustrationContainer} pointerEvents="none">
+        <SvgXml xml={SIGNUP_SVG} width={298} height={186} />
+      </View>
+
       <Text style={styles.appTitle}>ANTICIPATE</Text>
 
       <View style={styles.headerSection}>

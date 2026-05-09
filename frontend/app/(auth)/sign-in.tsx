@@ -10,9 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native'
-import { SvgUri } from 'react-native-svg'
-
-const IMG_ILLUSTRATION = 'https://www.figma.com/api/mcp/asset/0723ae74-0748-4b52-8627-0c50a11e35bb'
+import LoginSvg from '@/assets/illustrations/login.svg'
 
 export default function SignInScreen() {
   const { signIn, fetchStatus } = useSignIn()
@@ -39,6 +37,10 @@ export default function SignInScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={styles.illustrationContainer} pointerEvents="none">
+        <LoginSvg width={279} height={248} />
+      </View>
+
       <Text style={styles.appTitle}>ANTICIPATE</Text>
 
       <View style={styles.headerSection}>
@@ -84,14 +86,10 @@ export default function SignInScreen() {
       </View>
 
       <View style={styles.switchRow}>
-        <Text style={styles.switchText}>Don't have an account? </Text>
+        <Text style={styles.switchText}>{"Don't have an account? "}</Text>
         <Pressable onPress={() => router.push('/(auth)/sign-up')}>
           <Text style={styles.switchLink}>Sign up</Text>
         </Pressable>
-      </View>
-
-      <View style={styles.illustrationContainer} pointerEvents="none">
-        <SvgUri uri={IMG_ILLUSTRATION} width={279} height={248} />
       </View>
     </KeyboardAvoidingView>
   )
