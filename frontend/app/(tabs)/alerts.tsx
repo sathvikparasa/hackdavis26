@@ -88,7 +88,12 @@ export default function AlertsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>List View</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>List View</Text>
+          <Pressable style={styles.iconButton} onPress={loadAlerts}>
+            <MaterialIcons name="refresh" size={22} color="#1f2937" />
+          </Pressable>
+        </View>
 
         <View style={styles.searchBox}>
           <MaterialIcons name="search" size={22} color="#9ca3af" />
@@ -335,7 +340,22 @@ const styles = StyleSheet.create({
     color: '#111827',
     fontSize: 31,
     fontWeight: '900',
+  },
+  headerRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 24,
+  },
+  iconButton: {
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderColor: '#e5e7eb',
+    borderRadius: 18,
+    borderWidth: 1,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
   },
   searchBox: {
     alignItems: 'center',
