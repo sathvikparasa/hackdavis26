@@ -3,7 +3,6 @@ import { Redirect, useRouter } from 'expo-router'
 import React from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 
-
 import { upsertProfile } from '@/lib/supabase'
 
 export default function ProfilePage() {
