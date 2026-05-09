@@ -18,7 +18,11 @@ class Settings:
     google_embed_model: str = "gemini-embedding-001"
     google_embed_dimensions: int = 768
     ipm_match_count: int = 5
+    candidate_field_radius_miles: float = 10
     supabase_db_url: Optional[str] = None
+    supabase_url: Optional[str] = None
+    supabase_service_role_key: Optional[str] = None
+    supabase_report_image_bucket: str = "report-images"
     clerk_issuer: Optional[str] = None
 
 
@@ -30,6 +34,10 @@ def get_settings() -> Settings:
         google_embed_model=os.getenv("GOOGLE_EMBED_MODEL", "gemini-embedding-001"),
         google_embed_dimensions=int(os.getenv("GOOGLE_EMBED_DIMENSIONS", "768")),
         ipm_match_count=int(os.getenv("IPM_MATCH_COUNT", "5")),
+        candidate_field_radius_miles=float(os.getenv("CANDIDATE_FIELD_RADIUS_MILES", "10")),
         supabase_db_url=os.getenv("SUPABASE_DB_URL"),
+        supabase_url=os.getenv("SUPABASE_URL"),
+        supabase_service_role_key=os.getenv("SUPABASE_SERVICE_ROLE_KEY"),
+        supabase_report_image_bucket=os.getenv("SUPABASE_REPORT_IMAGE_BUCKET", "report-images"),
         clerk_issuer=os.getenv("CLERK_ISSUER"),
     )

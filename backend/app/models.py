@@ -47,6 +47,63 @@ class AnalysisResponse(BaseModel):
     confidence: float
 
 
+class SpreadSource(BaseModel):
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
+    crop_type: str
+
+
+class SpreadAnalysis(BaseModel):
+    spread_methods: List[SpreadMethod]
+    travel_distance: float
+    pest_name: str
+    confidence: float
+
+
+class CandidateField(BaseModel):
+    id: str
+    name: str
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
+    crop_type: str
+
+
+class AlertSeverity(str, Enum):
+    low = "LOW"
+    medium = "MEDIUM"
+    high = "HIGH"
+
+
+class SpreadRequest(BaseModel):
+    source: SpreadSource
+    analysis: SpreadAnalysis
+    fields: List[CandidateField]
+
+
+class FieldAlert(BaseModel):
+    field_id: str
+    field_name: str
+    crop_type: str
+    risk_score: float = Field(..., ge=0, le=1)
+    severity: AlertSeverity
+    distance: float
+    matched_methods: List[SpreadMethod]
+    reasons: List[str]
+
+
+class SpreadResponse(BaseModel):
+    pest_name: str
+    alerts: List[FieldAlert]
+
+
+class ReportResponse(BaseModel):
+    report_id: str
+    image_bucket: str
+    image_path: str
+    analysis: AnalysisResponse
+    spread: SpreadResponse
+
+
 class AnalysisInput(BaseModel):
     image_bytes: bytes
     mime_type: str
