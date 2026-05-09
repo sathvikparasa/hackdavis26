@@ -18,7 +18,8 @@ Copy values into `.env` before running the analysis endpoint.
 - `POST /analysis`
 - `POST /spread`
 
-`POST /reports` and `POST /spread` are still stubs. `POST /analysis` now wires the Gemini and Supabase IPM search flow.
+`POST /reports` uploads the image to Supabase Storage, runs analysis, scores spread risk, and stores report rows.
+`POST /analysis` wires the Gemini and Supabase IPM search flow.
 
 `POST /analysis` now accepts multipart form data:
 
@@ -26,6 +27,14 @@ Copy values into `.env` before running the analysis endpoint.
 - `crop_type`: crop where the pest was detected
 - `latitude`: optional detection latitude
 - `longitude`: optional detection longitude
+
+`POST /reports` accepts multipart form data:
+
+- `image`: uploaded pest image file
+- `crop_type`: crop where the pest was detected
+- `latitude`: report latitude
+- `longitude`: report longitude
+- `reporter_user_id`: optional Clerk user id
 
 ## Layout
 
@@ -49,4 +58,10 @@ From the repo root:
 
 ```bash
 uv run --project backend python tests/call_analysis_api.py --crop-type almond
+```
+
+To test image upload plus report persistence:
+
+```bash
+uv run python tests/call_reports_api.py --crop-type almond --latitude 38.54 --longitude -121.73
 ```

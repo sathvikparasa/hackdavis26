@@ -5,6 +5,9 @@ from fastapi import FastAPI, File, Form, UploadFile
 from app.models import (
     AnalysisRequest,
     AnalysisResponse,
+    ReportResponse,
+    SpreadRequest,
+    SpreadResponse,
     StatusResponse,
     WeatherContext,
 )
@@ -24,9 +27,24 @@ def health() -> StatusResponse:
     return {"status": "ok"}
 
 
-@app.post("/reports")
-def submit_report() -> StatusResponse:
-    return submit_report_service()
+@app.post("/reports", response_model=ReportResponse)
+async def submit_report(
+    image: UploadFile = File(...),
+    crop_type: str = Form(...),
+    latitude: float = Form(...),
+    longitude: float = Form(...),
+    reporter_user_id: Optional[str] = Form(None),
+) -> ReportResponse:
+    image_bytes = await image.read()
+    return submit_report_service(
+        image_bytes=image_bytes,
+        mime_type=image.content_type or "application/octet-stream",
+        filename=image.filename or "report-image",
+        crop_type=crop_type,
+        latitude=latitude,
+        longitude=longitude,
+        reporter_user_id=reporter_user_id,
+    )
 
 
 @app.post("/analysis", response_model=AnalysisResponse)
@@ -51,7 +69,6 @@ def get_report_weather_context(request: AnalysisRequest) -> WeatherContext:
     return get_report_weather_context_service(request)
 
 
-@app.post("/spread")
-def calculate_spread() -> StatusResponse:
-    return calculate_spread_service()
-
+@app.post("/spread", response_model=SpreadResponse)
+def calculate_spread(request: SpreadRequest) -> SpreadResponse:
+    return calculate_spread_service(request)
