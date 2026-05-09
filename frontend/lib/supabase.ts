@@ -17,6 +17,17 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   },
 })
 
+export function createSupabaseWithAccessToken(accessToken: () => Promise<string | null>) {
+  return createClient(supabaseUrl, supabaseKey, {
+    accessToken,
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  })
+}
+
 export async function upsertProfile(clerkUserId: string, email: string, name?: string) {
   const { error } = await supabase
     .from('profiles')
