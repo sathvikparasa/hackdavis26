@@ -78,7 +78,7 @@ export default function SignUpScreen() {
   if (pendingVerification) {
     return (
       <View style={styles.container}>
-        <Text style={styles.appTitle}>A N T I C I P A T E</Text>
+        <Text style={styles.appTitle}>ANTICIPATE</Text>
 
         <View style={styles.mfaContent}>
           <Text style={[styles.heading, { textAlign: 'center' }]}>Check your email</Text>

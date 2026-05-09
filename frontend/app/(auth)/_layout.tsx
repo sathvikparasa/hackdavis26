@@ -10,5 +10,5 @@ export default function AuthRoutesLayout() {
     return <Redirect href="/(tabs)" />
   }
 
-  return <Stack screenOptions={{ headerShown: false }} />
+  return <Stack screenOptions={{ headerShown: false, gestureEnabled: true }} />
 }

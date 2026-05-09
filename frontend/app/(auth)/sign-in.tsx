@@ -42,7 +42,7 @@ export default function SignInScreen() {
       <Text style={styles.appTitle}>ANTICIPATE</Text>
 
       <View style={styles.headerSection}>
-        <Text style={styles.heading}>Welcome back!</Text>
+        <Text style={styles.heading}>Welcome Back!</Text>
         <Text style={styles.subheading}>Sign in to continue</Text>
       </View>
 
