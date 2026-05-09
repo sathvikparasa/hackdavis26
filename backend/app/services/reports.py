@@ -54,6 +54,7 @@ def submit_report(
             ),
             analysis=SpreadAnalysis(
                 spread_methods=analysis.spread_methods,
+                vulnerable_crop=analysis.vulnerable_crop,
                 travel_distance=analysis.travel_distance,
                 pest_name=analysis.pest_name,
                 confidence=analysis.confidence,

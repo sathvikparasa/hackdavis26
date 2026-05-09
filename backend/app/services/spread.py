@@ -1,3 +1,5 @@
+import re
+from dataclasses import dataclass
 from math import asin, atan2, cos, degrees, radians, sin, sqrt
 
 from app.models import (
@@ -15,6 +17,14 @@ from app.services.weather import get_current_weather
 
 EARTH_RADIUS_MILES = 3958.8
 DEFAULT_TRAVEL_DISTANCE_MILES = 1.0
+ADJACENCY_HOP_DISTANCE_MILES = 1.0
+
+
+@dataclass(frozen=True)
+class _AdjacencyMatch:
+    trigger_distance: float
+    source_distance: float
+    hops: int
 
 
 def calculate_spread(request: SpreadRequest) -> SpreadResponse:
@@ -25,6 +35,8 @@ def calculate_spread(request: SpreadRequest) -> SpreadResponse:
             request.source.longitude,
         )
 
+    adjacency_matches = _build_adjacency_matches(request)
+
     alerts = [
         alert
         for field in request.fields
@@ -34,6 +46,7 @@ def calculate_spread(request: SpreadRequest) -> SpreadResponse:
                 field=field,
                 wind_direction=weather.wind_direction_10m if weather else None,
                 wind_speed=weather.wind_speed_10m if weather else None,
+                adjacency_match=adjacency_matches.get(field.id),
             )
         )
         is not None
@@ -51,7 +64,14 @@ def _score_field(
     field: CandidateField,
     wind_direction: float | None,
     wind_speed: float | None,
+    adjacency_match: _AdjacencyMatch | None,
 ) -> FieldAlert | None:
+    affected_crops = _affected_crop_keys(request)
+    crop_key = _crop_key(field.crop_type)
+    crop_matches_pest = crop_key in affected_crops
+    if not crop_matches_pest:
+        return None
+
     distance = _distance_miles(
         request.source.longitude,
         request.source.latitude,
@@ -64,12 +84,17 @@ def _score_field(
     reasons: list[str] = []
     score_parts: list[float] = []
 
-    if SpreadMethod.adjacency in request.analysis.spread_methods:
-        adjacency_score = _proximity_score(distance, travel_distance)
-        if adjacency_score > 0:
-            matched_methods.append(SpreadMethod.adjacency)
-            score_parts.append(adjacency_score)
-            reasons.append("Field is within the pest travel distance")
+    if SpreadMethod.adjacency in request.analysis.spread_methods and adjacency_match:
+        adjacency_score = _adjacency_score(
+            adjacency_match=adjacency_match,
+            travel_distance=travel_distance,
+        )
+        matched_methods.append(SpreadMethod.adjacency)
+        score_parts.append(adjacency_score)
+        reasons.append(
+            "Field crop is vulnerable and reachable by adjacency "
+            f"in {adjacency_match.hops} hop(s)"
+        )
 
     if SpreadMethod.wind in request.analysis.spread_methods and wind_direction is not None:
         wind_score = _wind_score(
@@ -108,12 +133,14 @@ def _score_field(
     if not score_parts:
         return None
 
-    crop_bonus = 0.1 if field.crop_type.lower() == request.source.crop_type.lower() else 0
+    crop_bonus = 0.1 if _crop_key(field.crop_type) == _crop_key(request.source.crop_type) else 0
     confidence_weight = max(0, min(request.analysis.confidence, 1))
     risk_score = min(1, (max(score_parts) * confidence_weight) + crop_bonus)
 
     if crop_bonus:
         reasons.append("Field crop matches the detection crop")
+    elif crop_matches_pest:
+        reasons.append("Field crop is listed as vulnerable to this pest")
 
     return FieldAlert(
         field_id=field.id,
@@ -151,6 +178,91 @@ def _proximity_score(distance: float, travel_distance: float) -> float:
     if travel_distance <= 0 or distance > travel_distance:
         return 0
     return max(0, 1 - (distance / travel_distance))
+
+
+def _affected_crop_keys(request: SpreadRequest) -> set[str]:
+    crops = {_crop_key(request.source.crop_type)}
+    crops.update(_crop_key(crop.crop_type) for crop in request.analysis.vulnerable_crop)
+    return {crop for crop in crops if crop}
+
+
+def _build_adjacency_matches(request: SpreadRequest) -> dict[str, _AdjacencyMatch]:
+    if SpreadMethod.adjacency not in request.analysis.spread_methods:
+        return {}
+
+    max_radius = request.analysis.travel_distance or DEFAULT_TRAVEL_DISTANCE_MILES
+    hop_distance = min(ADJACENCY_HOP_DISTANCE_MILES, max_radius)
+    affected_crops = _affected_crop_keys(request)
+    unvisited = {
+        field.id: field
+        for field in request.fields
+        if _crop_key(field.crop_type) in affected_crops
+        and _source_distance(request, field) <= max_radius
+    }
+    matches: dict[str, _AdjacencyMatch] = {}
+    frontier: list[tuple[float, float, int]] = [
+        (request.source.longitude, request.source.latitude, 0)
+    ]
+
+    while frontier and unvisited:
+        next_frontier: list[tuple[float, float, int]] = []
+
+        for origin_lon, origin_lat, hops in frontier:
+            reached_ids: list[str] = []
+            for field_id, field in unvisited.items():
+                trigger_distance = _distance_miles(
+                    origin_lon,
+                    origin_lat,
+                    field.longitude,
+                    field.latitude,
+                )
+                if trigger_distance > hop_distance:
+                    continue
+
+                source_distance = _source_distance(request, field)
+                matches[field_id] = _AdjacencyMatch(
+                    trigger_distance=trigger_distance,
+                    source_distance=source_distance,
+                    hops=hops + 1,
+                )
+                next_frontier.append((field.longitude, field.latitude, hops + 1))
+                reached_ids.append(field_id)
+
+            for field_id in reached_ids:
+                unvisited.pop(field_id, None)
+
+        frontier = next_frontier
+
+    return matches
+
+
+def _adjacency_score(
+    adjacency_match: _AdjacencyMatch,
+    travel_distance: float,
+) -> float:
+    hop_distance = min(ADJACENCY_HOP_DISTANCE_MILES, travel_distance)
+    hop_score = _proximity_score(adjacency_match.trigger_distance, hop_distance)
+    hop_penalty = 0.85 ** max(adjacency_match.hops - 1, 0)
+    return max(0.05, hop_score * hop_penalty)
+
+
+def _source_distance(request: SpreadRequest, field: CandidateField) -> float:
+    return _distance_miles(
+        request.source.longitude,
+        request.source.latitude,
+        field.longitude,
+        field.latitude,
+    )
+
+
+def _crop_key(crop_type: str) -> str:
+    normalized = re.sub(r"[^a-z0-9]+", " ", crop_type.lower()).strip()
+    words = []
+    for word in normalized.split():
+        if len(word) > 3 and word.endswith("s"):
+            word = word[:-1]
+        words.append(word)
+    return " ".join(words)
 
 
 def _wind_score(
