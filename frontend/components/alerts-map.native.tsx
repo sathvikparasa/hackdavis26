@@ -1,5 +1,5 @@
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
+import { memo, useEffect, useRef } from 'react';
+import MapView, { Circle, Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { AlertItem, AlertSeverity } from '@/lib/alerts';
@@ -17,25 +17,72 @@ const severityColors: Record<AlertSeverity, string> = {
   Low: '#238a3b',
 };
 
-export function AlertsMap({
+const radiusFillColors: Record<AlertSeverity, string> = {
+  High: 'rgba(220,59,59,0.16)',
+  Moderate: 'rgba(242,165,26,0.15)',
+  Low: 'rgba(35,138,59,0.13)',
+};
+
+function AlertsMapComponent({
   alerts,
-  selectedId,
   onSelect,
+  onClearSelection,
+  focusedLocation,
 }: {
   alerts: AlertItem[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  onClearSelection: () => void;
+  focusedLocation: { latitude: number; longitude: number } | null;
 }) {
+  const mapRef = useRef<MapView>(null);
+
+  useEffect(() => {
+    if (!focusedLocation) {
+      return;
+    }
+
+    mapRef.current?.animateToRegion(
+      {
+        ...focusedLocation,
+        latitudeDelta: 0.08,
+        longitudeDelta: 0.1,
+      },
+      450
+    );
+  }, [focusedLocation]);
+
   return (
     <MapView
+      ref={mapRef}
       provider={PROVIDER_DEFAULT}
       style={StyleSheet.absoluteFill}
       initialRegion={YOLO_REGION}
+      onPress={onClearSelection}
       showsUserLocation
       showsMyLocationButton
     >
       {alerts.map((alert) => {
-        const isSelected = alert.id === selectedId;
+        const radiusMiles = alert.travelDistanceMiles;
+        if (!radiusMiles || radiusMiles <= 0) {
+          return null;
+        }
+
+        return (
+          <Circle
+            key={`${alert.id}-radius`}
+            center={{
+              latitude: alert.latitude,
+              longitude: alert.longitude,
+            }}
+            radius={radiusMiles * 1609.344}
+            strokeColor={severityColors[alert.severity]}
+            strokeWidth={2}
+            fillColor={radiusFillColors[alert.severity]}
+          />
+        );
+      })}
+      {alerts.map((alert) => {
         return (
           <Marker
             key={alert.id}
@@ -43,26 +90,25 @@ export function AlertsMap({
               latitude: alert.latitude,
               longitude: alert.longitude,
             }}
-            onPress={() => onSelect(alert.id)}
-            tracksViewChanges={false}
-          >
-            <View
-              style={[
-                styles.marker,
-                {
-                  backgroundColor: severityColors[alert.severity],
-                  transform: [{ scale: isSelected ? 1.16 : 1 }],
-                },
-              ]}
-            >
-              <MaterialIcons name="place" size={24} color="#fff" />
-            </View>
-          </Marker>
+            onPress={(event) => {
+              event.stopPropagation?.();
+              onSelect(alert.id);
+            }}
+            pinColor={severityColors[alert.severity]}
+          />
         );
       })}
     </MapView>
   );
 }
+
+export const AlertsMap = memo(
+  AlertsMapComponent,
+  (prev, next) =>
+    prev.alerts === next.alerts &&
+    prev.focusedLocation?.latitude === next.focusedLocation?.latitude &&
+    prev.focusedLocation?.longitude === next.focusedLocation?.longitude
+);
 
 export function EmptyMapMessage({ title, detail }: { title: string; detail?: string }) {
   return (
@@ -74,19 +120,6 @@ export function EmptyMapMessage({ title, detail }: { title: string; detail?: str
 }
 
 const styles = StyleSheet.create({
-  marker: {
-    alignItems: 'center',
-    borderColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 20,
-    borderWidth: 3,
-    height: 40,
-    justifyContent: 'center',
-    shadowColor: '#111827',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    width: 40,
-  },
   message: {
     alignItems: 'center',
     alignSelf: 'center',

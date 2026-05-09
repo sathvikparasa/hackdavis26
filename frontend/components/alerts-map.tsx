@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AlertItem, AlertSeverity, projectAlerts } from '@/lib/alerts';
 
@@ -13,15 +13,19 @@ export function AlertsMap({
   alerts,
   selectedId,
   onSelect,
+  onClearSelection,
+  focusedLocation,
 }: {
   alerts: AlertItem[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  onClearSelection: () => void;
+  focusedLocation: { latitude: number; longitude: number } | null;
 }) {
   const projected = projectAlerts(alerts);
 
   return (
-    <View style={styles.webMap}>
+    <Pressable style={styles.webMap} onPress={onClearSelection}>
       <View style={[styles.fieldPatch, styles.fieldOne]} />
       <View style={[styles.fieldPatch, styles.fieldTwo]} />
       <View style={[styles.fieldPatch, styles.fieldThree]} />
@@ -30,27 +34,54 @@ export function AlertsMap({
       <Text style={[styles.mapLabel, styles.mapLabelOne]}>Yolo County</Text>
       <Text style={[styles.mapLabel, styles.mapLabelTwo]}>Davis</Text>
       <Text style={[styles.mapLabel, styles.mapLabelThree]}>Woodland</Text>
+      {focusedLocation ? (
+        <View style={styles.focusMarker}>
+          <MaterialIcons name="my-location" size={22} color="#2563eb" />
+        </View>
+      ) : null}
       {alerts.map((alert) => {
         const point = projected.get(alert.id) ?? { x: 50, y: 50 };
+        const radius = radiusSize(alert.travelDistanceMiles ?? 0);
         return (
-          <View
-            key={alert.id}
-            onTouchEnd={() => onSelect(alert.id)}
-            style={[
-              styles.pin,
-              {
-                left: `${point.x}%`,
-                top: `${point.y}%`,
-                backgroundColor: severityColors[alert.severity],
-                transform: [{ scale: alert.id === selectedId ? 1.13 : 1 }],
-              },
-            ]}
-          >
-            <MaterialIcons name="place" size={24} color="#fff" />
+          <View key={alert.id}>
+            {alert.travelDistanceMiles && alert.travelDistanceMiles > 0 ? (
+              <View
+                pointerEvents="none"
+                style={[
+                  styles.radiusCircle,
+                  {
+                    borderColor: severityColors[alert.severity],
+                    height: radius,
+                    left: `${point.x}%`,
+                    marginLeft: -radius / 2,
+                    marginTop: -radius / 2,
+                    top: `${point.y}%`,
+                    width: radius,
+                  },
+                ]}
+              />
+            ) : null}
+            <View
+              onTouchEnd={(event) => {
+                event.stopPropagation();
+                onSelect(alert.id);
+              }}
+              style={[
+                styles.pin,
+                {
+                  left: `${point.x}%`,
+                  top: `${point.y}%`,
+                  backgroundColor: severityColors[alert.severity],
+                  transform: [{ scale: alert.id === selectedId ? 1.13 : 1 }],
+                },
+              ]}
+            >
+              <MaterialIcons name="place" size={24} color="#fff" />
+            </View>
           </View>
         );
       })}
-    </View>
+    </Pressable>
   );
 }
 
@@ -61,6 +92,10 @@ export function EmptyMapMessage({ title, detail }: { title: string; detail?: str
       {detail ? <Text style={styles.messageDetail}>{detail}</Text> : null}
     </View>
   );
+}
+
+function radiusSize(radiusMiles: number): number {
+  return Math.max(54, Math.min(180, radiusMiles * 18));
 }
 
 const styles = StyleSheet.create({
@@ -122,6 +157,32 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     width: 40,
+  },
+  radiusCircle: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 999,
+    borderWidth: 2,
+    opacity: 0.42,
+    position: 'absolute',
+  },
+  focusMarker: {
+    alignItems: 'center',
+    backgroundColor: '#dbeafe',
+    borderColor: '#fff',
+    borderRadius: 18,
+    borderWidth: 3,
+    height: 36,
+    justifyContent: 'center',
+    left: '50%',
+    marginLeft: -18,
+    marginTop: -18,
+    position: 'absolute',
+    shadowColor: '#111827',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    top: '50%',
+    width: 36,
   },
   message: {
     alignItems: 'center',
