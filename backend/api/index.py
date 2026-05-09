@@ -1,54 +1,29 @@
-from enum import Enum
-from typing import List
-
 from fastapi import FastAPI
-from pydantic import BaseModel, Field
+
+from app.models import AnalysisResponse, StatusResponse
+from app.services.analysis import analyze_report as analyze_report_service
+from app.services.reports import submit_report as submit_report_service
+from app.services.spread import calculate_spread as calculate_spread_service
 
 
 app = FastAPI(title="YoloGuard API")
 
 
-class SpreadMethod(str, Enum):
-    wind = "wind"
-    water = "water"
-    adjacency = "adjacency"
-
-
-class VulnerableCrop(BaseModel):
-    damage_type: str = Field(..., examples=["leaf damage"])
-    duration: int = Field(..., examples=[7])
-    recommendations: str = Field(..., examples=["Monitor nearby fields."])
-
-
-class AnalysisResponse(BaseModel):
-    spread_methods: List[SpreadMethod]
-    vulnerable_crop: List[VulnerableCrop]
-    travel_distance: float
-    pest_name: str
-    confidence: float
-
-
 @app.get("/health")
-def health():
+def health() -> StatusResponse:
     return {"status": "ok"}
 
 
 @app.post("/reports")
-def submit_report():
-    return {"status": "stub"}
+def submit_report() -> StatusResponse:
+    return submit_report_service()
 
 
 @app.post("/analysis", response_model=AnalysisResponse)
-def analyze_report():
-    return {
-        "spread_methods": [],
-        "vulnerable_crop": [],
-        "travel_distance": 0,
-        "pest_name": "",
-        "confidence": 0,
-    }
+def analyze_report() -> AnalysisResponse:
+    return analyze_report_service()
 
 
 @app.post("/spread")
-def calculate_spread():
-    return {"status": "stub"}
+def calculate_spread() -> StatusResponse:
+    return calculate_spread_service()
