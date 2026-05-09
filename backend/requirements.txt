@@ -1,3 +1,7 @@
 fastapi==0.124.2
 uvicorn==0.38.0
 pydantic==2.12.5
+python-dotenv
+python-multipart
+google-genai
+psycopg[binary]

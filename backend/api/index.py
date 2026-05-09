@@ -1,4 +1,6 @@
-from fastapi import FastAPI
+from typing import Optional
+
+from fastapi import FastAPI, File, Form, UploadFile
 
 from app.models import AnalysisResponse, StatusResponse
 from app.services.analysis import analyze_report as analyze_report_service
@@ -20,8 +22,20 @@ def submit_report() -> StatusResponse:
 
 
 @app.post("/analysis", response_model=AnalysisResponse)
-def analyze_report() -> AnalysisResponse:
-    return analyze_report_service()
+async def analyze_report(
+    image: UploadFile = File(...),
+    crop_type: str = Form(...),
+    latitude: Optional[float] = Form(None),
+    longitude: Optional[float] = Form(None),
+) -> AnalysisResponse:
+    image_bytes = await image.read()
+    return analyze_report_service(
+        image_bytes=image_bytes,
+        mime_type=image.content_type or "application/octet-stream",
+        crop_type=crop_type,
+        latitude=latitude,
+        longitude=longitude,
+    )
 
 
 @app.post("/spread")
