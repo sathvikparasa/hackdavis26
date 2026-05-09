@@ -1,4 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
@@ -38,6 +39,7 @@ const severityStyles: Record<AlertSeverity, { pin: string; tint: string; text: s
 };
 
 export default function AlertsScreen() {
+  const router = useRouter();
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [openDropdown, setOpenDropdown] = useState<'crop' | 'pest' | 'severity' | null>(null);
   const [crop, setCrop] = useState('All Crops');
@@ -183,7 +185,13 @@ export default function AlertsScreen() {
           ) : filteredAlerts.length === 0 ? (
             <StateMessage title="No alerts found" detail="New public reports will appear here." />
           ) : (
-            filteredAlerts.map((alert) => <AlertCard key={alert.id} alert={alert} />)
+            filteredAlerts.map((alert) => (
+              <AlertCard
+                key={alert.id}
+                alert={alert}
+                onPress={() => router.push(`/alert/${alert.id}`)}
+              />
+            ))
           )}
         </View>
       </ScrollView>
@@ -215,11 +223,11 @@ function FilterChip({
   );
 }
 
-function AlertCard({ alert }: { alert: AlertItem }) {
+function AlertCard({ alert, onPress }: { alert: AlertItem; onPress: () => void }) {
   const colors = severityStyles[alert.severity];
 
   return (
-    <Pressable style={styles.card}>
+    <Pressable style={styles.card} onPress={onPress}>
       <View style={[styles.alertIcon, { backgroundColor: colors.tint }]}>
         <MaterialIcons name="place" size={22} color={colors.pin} />
       </View>
@@ -238,6 +246,10 @@ function AlertCard({ alert }: { alert: AlertItem }) {
         <View style={styles.cardMetaRow}>
           <Text style={styles.distanceText}>{alert.distance}</Text>
           <Text style={styles.timeText}>{alert.time}</Text>
+        </View>
+        <View style={styles.radiusRow}>
+          <MaterialIcons name="radio-button-unchecked" size={15} color="#6b7280" />
+          <Text style={styles.radiusText}>{alert.travelDistance}</Text>
         </View>
       </View>
     </Pressable>
@@ -511,6 +523,17 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     fontSize: 15,
     fontWeight: '700',
+  },
+  radiusRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 8,
+  },
+  radiusText: {
+    color: '#6b7280',
+    fontSize: 13,
+    fontWeight: '800',
   },
   dropdown: {
     backgroundColor: '#fff',

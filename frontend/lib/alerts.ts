@@ -14,6 +14,12 @@ export type AlertItem = {
   latitude: number;
   longitude: number;
   confidence: number;
+  spreadMethods: string[];
+  travelDistanceMiles: number | null;
+  travelDistance: string;
+  vulnerableCrops: VulnerableCrop[];
+  affectedFields: AffectedField[];
+  recommendations: string[];
 };
 
 type ReportRow = {
@@ -24,14 +30,53 @@ type ReportRow = {
   longitude: number | null;
   confidence: number | null;
   travel_distance: number | null;
+  spread_methods: string[] | null;
+  vulnerable_crop: VulnerableCropRow[] | null;
   created_at: string | null;
 };
 
 type AffectedFieldRow = {
   report_id: string;
+  field_id: number | null;
   risk_score: number | null;
   severity: string | null;
   distance: number | null;
+  matched_methods: string[] | null;
+  reasons: string[] | null;
+};
+
+type FieldRow = {
+  id: number;
+  unique_id: string | null;
+  main_crop: string | null;
+  county: string | null;
+  acres: number | null;
+  region: string | null;
+};
+
+type VulnerableCropRow = {
+  damage_type?: string | null;
+  duration?: number | null;
+  recommendations?: string | null;
+};
+
+export type VulnerableCrop = {
+  damageType: string;
+  durationDays: number | null;
+  recommendations: string;
+};
+
+export type AffectedField = {
+  fieldId: number | null;
+  fieldName: string;
+  crop: string;
+  county: string | null;
+  acres: number | null;
+  riskScore: number | null;
+  severity: AlertSeverity;
+  distanceMiles: number | null;
+  matchedMethods: string[];
+  reasons: string[];
 };
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -39,7 +84,7 @@ const SUPABASE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KE
 
 export async function fetchAlerts(): Promise<AlertItem[]> {
   const reports = await supabaseGet<ReportRow[]>(
-    '/rest/v1/reports?select=id,pest_name,crop_type,latitude,longitude,confidence,travel_distance,created_at&order=created_at.desc&limit=100'
+    '/rest/v1/reports?select=id,pest_name,crop_type,latitude,longitude,confidence,travel_distance,spread_methods,vulnerable_crop,created_at&order=created_at.desc&limit=100'
   );
 
   if (reports.length === 0) {
@@ -48,14 +93,36 @@ export async function fetchAlerts(): Promise<AlertItem[]> {
 
   const reportIds = reports.map((report) => report.id);
   const affectedFields = await supabaseGet<AffectedFieldRow[]>(
-    `/rest/v1/affected_fields?select=report_id,risk_score,severity,distance&report_id=in.(${reportIds.join(',')})&order=risk_score.desc`
+    `/rest/v1/affected_fields?select=report_id,field_id,risk_score,severity,distance,matched_methods,reasons&report_id=in.(${reportIds.join(',')})&order=risk_score.desc`
   );
 
+  const fieldIds = [
+    ...new Set(
+      affectedFields
+        .map((affectedField) => affectedField.field_id)
+        .filter((fieldId): fieldId is number => typeof fieldId === 'number')
+    ),
+  ];
+  const fields =
+    fieldIds.length > 0
+      ? await supabaseGet<FieldRow[]>(
+          `/rest/v1/fields?select=id,unique_id,main_crop,county,acres,region&id=in.(${fieldIds.join(',')})`
+        )
+      : [];
+  const fieldsById = new Map(fields.map((field) => [field.id, field]));
+
   const topAffectedByReport = new Map<string, AffectedFieldRow>();
+  const affectedByReport = new Map<string, AffectedField[]>();
   for (const affectedField of affectedFields) {
     if (!topAffectedByReport.has(affectedField.report_id)) {
       topAffectedByReport.set(affectedField.report_id, affectedField);
     }
+
+    const field = affectedField.field_id ? fieldsById.get(affectedField.field_id) : undefined;
+    const mapped = mapAffectedField(affectedField, field);
+    const current = affectedByReport.get(affectedField.report_id) ?? [];
+    current.push(mapped);
+    affectedByReport.set(affectedField.report_id, current);
   }
 
   return reports
@@ -70,6 +137,14 @@ export async function fetchAlerts(): Promise<AlertItem[]> {
       const distanceMiles = affected?.distance ?? report.travel_distance ?? null;
       const createdAt = report.created_at ? new Date(report.created_at) : null;
       const pest = report.pest_name || 'Unknown Pest';
+      const vulnerableCrops = (report.vulnerable_crop ?? []).map(mapVulnerableCrop);
+      const recommendations = [
+        ...new Set(
+          vulnerableCrops
+            .map((vulnerableCrop) => vulnerableCrop.recommendations.trim())
+            .filter(Boolean)
+        ),
+      ];
 
       return {
         id: report.id,
@@ -85,8 +160,19 @@ export async function fetchAlerts(): Promise<AlertItem[]> {
         latitude: report.latitude as number,
         longitude: report.longitude as number,
         confidence: report.confidence ?? 0,
+        spreadMethods: report.spread_methods ?? [],
+        travelDistanceMiles: report.travel_distance ?? null,
+        travelDistance: formatRadius(report.travel_distance ?? null),
+        vulnerableCrops,
+        affectedFields: affectedByReport.get(report.id) ?? [],
+        recommendations,
       };
     });
+}
+
+export async function fetchAlertById(id: string): Promise<AlertItem | null> {
+  const alerts = await fetchAlerts();
+  return alerts.find((alert) => alert.id === id) ?? null;
 }
 
 export function projectAlerts(alerts: AlertItem[]) {
@@ -136,6 +222,29 @@ async function supabaseGet<T>(path: string): Promise<T> {
   return response.json();
 }
 
+function mapAffectedField(affectedField: AffectedFieldRow, field?: FieldRow): AffectedField {
+  return {
+    fieldId: affectedField.field_id,
+    fieldName: field?.unique_id || field?.region || `Field ${affectedField.field_id ?? 'unknown'}`,
+    crop: titleCase(field?.main_crop || 'Unknown crop'),
+    county: field?.county ?? null,
+    acres: field?.acres ?? null,
+    riskScore: affectedField.risk_score,
+    severity: normalizeSeverity(affectedField.severity, affectedField.risk_score, null),
+    distanceMiles: affectedField.distance,
+    matchedMethods: affectedField.matched_methods ?? [],
+    reasons: affectedField.reasons ?? [],
+  };
+}
+
+function mapVulnerableCrop(value: VulnerableCropRow): VulnerableCrop {
+  return {
+    damageType: value.damage_type || 'Crop damage details unavailable.',
+    durationDays: typeof value.duration === 'number' ? value.duration : null,
+    recommendations: value.recommendations || 'No recommendation provided.',
+  };
+}
+
 function normalizeSeverity(
   value: string | null | undefined,
   riskScore: number | null | undefined,
@@ -181,6 +290,14 @@ function formatDistance(distance: number | null): string {
   }
   const rounded = distance < 10 ? Math.round(distance * 10) / 10 : Math.round(distance);
   return `${rounded} miles away`;
+}
+
+function formatRadius(distance: number | null): string {
+  if (distance === null) {
+    return 'Radius unavailable';
+  }
+  const rounded = distance < 10 ? Math.round(distance * 10) / 10 : Math.round(distance);
+  return `${rounded} mi radius`;
 }
 
 function formatDetected(date: Date): string {
