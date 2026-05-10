@@ -129,6 +129,21 @@ class RecomputeAllAffectedFieldsResponse(BaseModel):
     affected_fields_upserted: int
 
 
+class NotifyAffectedFieldsRequest(BaseModel):
+    reporter_user_id: str | None = None
+    report_id: str | None = None
+    field_ids: list[int] | None = None
+
+
+class NotifyAffectedFieldsResponse(BaseModel):
+    reporter_user_id: str | None = None
+    report_id: str | None = None
+    field_ids: list[int] | None = None
+    reports_checked: int
+    reports_with_alerts: int
+    affected_fields_notified: int
+
+
 class AnalysisInput(BaseModel):
     image_bytes: bytes
     mime_type: str

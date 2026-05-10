@@ -4,6 +4,7 @@ from app.config import get_settings
 from app.models import (
     AnalysisResponse,
     FieldAlert,
+    NotifyAffectedFieldsResponse,
     RecomputeAllAffectedFieldsResponse,
     RecomputeFarmerFieldsResponse,
     ReportResponse,
@@ -20,6 +21,7 @@ from app.services.push_notifications import notify_affected_field_owners
 from app.services.report_db import (
     delete_all_affected_fields,
     delete_affected_fields_for_fields,
+    list_existing_affected_reports,
     list_farmer_field_ids_for_user,
     list_farmer_field_owner_user_ids,
     insert_report,
@@ -261,6 +263,54 @@ def recompute_farmer_field_alerts(
         reports_with_alerts=reports_with_alerts,
         affected_fields_upserted=affected_fields_upserted,
     )
+
+def notify_affected_fields_from_existing_rows(
+    reporter_user_id: str | None = None,
+    report_id: str | None = None,
+    field_ids: list[int] | None = None,
+) -> NotifyAffectedFieldsResponse:
+    filtered_field_ids = set(field_ids or [])
+    reports = list_existing_affected_reports(
+        reporter_user_id=reporter_user_id,
+        report_id=report_id,
+        field_ids=filtered_field_ids or None,
+    )
+    reports_with_alerts = 0
+    affected_fields_notified = 0
+
+    logger.info(
+        "Notifying existing affected fields reporter_user_id=%s report_id=%s field_ids=%s reports=%s",
+        reporter_user_id,
+        report_id,
+        sorted(filtered_field_ids) or None,
+        len(reports),
+    )
+
+    for report in reports:
+        if not report.alerts:
+            continue
+
+        reports_with_alerts += 1
+        affected_fields_notified += len(report.alerts)
+        try:
+            notify_affected_field_owners(
+                report_id=report.id,
+                reporter_user_id=report.reporter_user_id,
+                analysis=report.analysis,
+                alerts=report.alerts,
+            )
+        except Exception as error:
+            logger.warning("Unable to send existing affected field push notifications: %s", error)
+
+    return NotifyAffectedFieldsResponse(
+        reporter_user_id=reporter_user_id,
+        report_id=report_id,
+        field_ids=sorted(filtered_field_ids) or None,
+        reports_checked=len(reports),
+        reports_with_alerts=reports_with_alerts,
+        affected_fields_notified=affected_fields_notified,
+    )
+
 
 def repopulate_all_affected_fields() -> RecomputeAllAffectedFieldsResponse:
     logger.info("Starting full affected fields repopulation")

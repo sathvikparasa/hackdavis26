@@ -8,6 +8,8 @@ from fastapi import FastAPI, File, Form, UploadFile
 from app.models import (
     AnalysisRequest,
     AnalysisResponse,
+    NotifyAffectedFieldsRequest,
+    NotifyAffectedFieldsResponse,
     RecomputeAllAffectedFieldsResponse,
     RecomputeFarmerFieldsRequest,
     RecomputeFarmerFieldsResponse,
@@ -24,6 +26,7 @@ from app.services.weather_analysis import (
 from app.services.reports import submit_report as submit_report_service
 from app.services.reports import recompute_farmer_field_alerts as recompute_farmer_field_alerts_service
 from app.services.reports import repopulate_all_affected_fields as repopulate_all_affected_fields_service
+from app.services.reports import notify_affected_fields_from_existing_rows as notify_affected_fields_service
 from app.services.spread import calculate_spread as calculate_spread_service
 
 
@@ -71,6 +74,17 @@ def recompute_farmer_field_alerts(
         field_id=request.field_id,
         field_ids=request.field_ids,
         send_notifications=request.send_notifications,
+    )
+
+
+@app.post("/alerts/notify-affected-fields", response_model=NotifyAffectedFieldsResponse)
+def notify_affected_fields(
+    request: NotifyAffectedFieldsRequest,
+) -> NotifyAffectedFieldsResponse:
+    return notify_affected_fields_service(
+        reporter_user_id=request.reporter_user_id,
+        report_id=request.report_id,
+        field_ids=request.field_ids,
     )
 
 

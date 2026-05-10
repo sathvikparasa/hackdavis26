@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import psycopg
 
 from app.config import get_settings
-from app.models import AnalysisResponse, SpreadMethod, SpreadResponse, VulnerableCrop
+from app.models import AlertSeverity, AnalysisResponse, FieldAlert, SpreadMethod, SpreadResponse, VulnerableCrop
 
 
 @dataclass(frozen=True)
@@ -15,6 +15,14 @@ class StoredReport:
     latitude: float
     longitude: float
     analysis: AnalysisResponse
+
+
+@dataclass(frozen=True)
+class ExistingAffectedReport:
+    id: str
+    reporter_user_id: str | None
+    analysis: AnalysisResponse
+    alerts: list[FieldAlert]
 
 
 def insert_report(
@@ -140,7 +148,6 @@ def list_farmer_field_ids_for_user(reporter_user_id: str) -> list[int]:
     from public.farmer_fields ff
     join public.profiles p on p.id = ff.profile_id
     where p.clerk_user_id = %(reporter_user_id)s
-      and nullif(trim(ff.crop_type), '') is not null
     order by ff.field_id;
     """
 
@@ -151,6 +158,90 @@ def list_farmer_field_ids_for_user(reporter_user_id: str) -> list[int]:
 
     return [int(row[0]) for row in rows]
 
+
+
+def list_existing_affected_reports(
+    reporter_user_id: str | None = None,
+    report_id: str | None = None,
+    field_ids: set[int] | None = None,
+) -> list[ExistingAffectedReport]:
+    settings = get_settings()
+    if not settings.supabase_db_url:
+        raise RuntimeError("Missing SUPABASE_DB_URL")
+
+    sql = """
+    select
+      r.id,
+      r.reporter_user_id,
+      r.pest_name,
+      r.confidence,
+      r.travel_distance,
+      r.spread_methods,
+      r.vulnerable_crop,
+      af.field_id,
+      coalesce(f.unique_id, 'field_' || f.id::text) as field_name,
+      coalesce(nullif(ff.crop_type, ''), nullif(f.main_crop_name, ''), f.main_crop, 'unknown') as crop_type,
+      af.risk_score,
+      af.severity,
+      af.distance,
+      af.matched_methods,
+      af.reasons
+    from public.affected_fields af
+    join public.reports r on r.id = af.report_id
+    join public.fields f on f.id = af.field_id
+    join public.farmer_fields ff on ff.field_id = af.field_id
+    join public.profiles p on p.id = ff.profile_id
+    where (%(reporter_user_id)s is null or p.clerk_user_id = %(reporter_user_id)s)
+      and (%(report_id)s is null or r.id = %(report_id)s::uuid)
+      and (%(field_ids)s is null or af.field_id = any(%(field_ids)s::bigint[]))
+    order by r.created_at desc, af.risk_score desc;
+    """
+
+    with psycopg.connect(settings.supabase_db_url, prepare_threshold=None) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                sql,
+                {
+                    "reporter_user_id": reporter_user_id,
+                    "report_id": report_id,
+                    "field_ids": list(field_ids) if field_ids else None,
+                },
+            )
+            rows = cur.fetchall()
+
+    by_report: dict[str, ExistingAffectedReport] = {}
+    for row in rows:
+        report_id_value = str(row[0])
+        report = by_report.get(report_id_value)
+        if report is None:
+            report = ExistingAffectedReport(
+                id=report_id_value,
+                reporter_user_id=row[1],
+                analysis=_analysis_from_report_columns(
+                    pest_name=row[2],
+                    confidence=row[3],
+                    travel_distance=row[4],
+                    spread_methods=row[5],
+                    vulnerable_crop=row[6],
+                ),
+                alerts=[],
+            )
+            by_report[report_id_value] = report
+
+        report.alerts.append(
+            FieldAlert(
+                field_id=str(row[7]),
+                field_name=row[8],
+                crop_type=row[9] or "unknown",
+                risk_score=float(row[10] or 0),
+                severity=AlertSeverity(row[11]),
+                distance=float(row[12] or 0),
+                matched_methods=_spread_methods_from_db(row[13]),
+                reasons=_reasons_from_db(row[14]),
+            )
+        )
+
+    return list(by_report.values())
 
 
 def upsert_affected_fields(
@@ -307,3 +398,15 @@ def _spread_methods_from_db(value) -> list[SpreadMethod]:
             value = [value]
 
     return [SpreadMethod(method) for method in value]
+
+
+def _reasons_from_db(value) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+            return [str(item) for item in parsed] if isinstance(parsed, list) else [value]
+        except json.JSONDecodeError:
+            return [value]
+    return [str(item) for item in value]
