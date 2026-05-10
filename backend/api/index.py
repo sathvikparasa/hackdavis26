@@ -1,4 +1,4 @@
-from contextlib import asynccontextmanager
+import asyncio
 from typing import Optional
 
 from fastapi import FastAPI, File, Form, UploadFile
@@ -16,29 +16,16 @@ from app.models import (
     WeatherContext,
 )
 from app.services.analysis import analyze_report as analyze_report_service
-from app.services.affected_fields_scheduler import (
-    repopulate_all_affected_fields_once,
-    start_affected_fields_scheduler,
-    stop_affected_fields_scheduler,
-)
 from app.services.weather_analysis import (
     get_report_weather_context as get_report_weather_context_service,
 )
 from app.services.reports import submit_report as submit_report_service
 from app.services.reports import recompute_farmer_field_alerts as recompute_farmer_field_alerts_service
+from app.services.reports import repopulate_all_affected_fields as repopulate_all_affected_fields_service
 from app.services.spread import calculate_spread as calculate_spread_service
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    await start_affected_fields_scheduler()
-    try:
-        yield
-    finally:
-        await stop_affected_fields_scheduler()
-
-
-app = FastAPI(title="YoloGuard API", lifespan=lifespan)
+app = FastAPI(title="YoloGuard API")
 
 
 @app.get("/health")
@@ -80,12 +67,12 @@ def recompute_farmer_field_alerts(
 
 @app.post("/alerts/repopulate-affected-fields", response_model=RecomputeAllAffectedFieldsResponse)
 async def repopulate_affected_fields() -> RecomputeAllAffectedFieldsResponse:
-    return await repopulate_all_affected_fields_once()
+    return await asyncio.to_thread(repopulate_all_affected_fields_service)
 
 
 @app.get("/cron/repopulate-affected-fields", response_model=RecomputeAllAffectedFieldsResponse)
 async def cron_repopulate_affected_fields() -> RecomputeAllAffectedFieldsResponse:
-    return await repopulate_all_affected_fields_once()
+    return await asyncio.to_thread(repopulate_all_affected_fields_service)
 
 
 @app.post("/analysis", response_model=AnalysisResponse)
