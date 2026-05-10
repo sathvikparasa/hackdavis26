@@ -148,8 +148,11 @@ function AlertCard({ alert, onPress, onViewMap }: { alert: AlertItem; onPress: (
   return (
     <Pressable style={[styles.card, { backgroundColor: cfg.cardBg }]} onPress={onPress}>
       <View style={styles.cardInner}>
-        {/* Left: report image */}
-        <View style={[styles.pestImageBox, { borderRightColor: cfg.accent, borderRightWidth: 2 }]}>
+        {/* Severity bar */}
+        <View style={[styles.severityBar, { backgroundColor: cfg.accent }]} />
+
+        {/* Image */}
+        <View style={styles.pestImageBox}>
           {alert.imageUrl ? (
             <Image source={{ uri: alert.imageUrl }} style={styles.pestImage} contentFit="cover" />
           ) : (
@@ -159,12 +162,10 @@ function AlertCard({ alert, onPress, onViewMap }: { alert: AlertItem; onPress: (
           )}
         </View>
 
-        {/* Right: content */}
+        {/* Content */}
         <View style={styles.cardContent}>
           <Text style={styles.cardTitle} numberOfLines={2}>{alert.pest}</Text>
           <Text style={styles.cropLabel}>{alert.crop}</Text>
-
-          {/* Meta row */}
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
               <MaterialIcons name="place" size={12} color="#9ca3af" />
@@ -181,8 +182,6 @@ function AlertCard({ alert, onPress, onViewMap }: { alert: AlertItem; onPress: (
               <Text style={styles.metaText} numberOfLines={1}>{alert.travelDistance}</Text>
             </View>
           </View>
-
-          {/* Footer */}
           <View style={[styles.cardFooter, { borderTopColor: cfg.accent + '40' }]}>
             <Text style={styles.affectingText} numberOfLines={1}>
               Affecting: <Text style={styles.affectingCrop}>{affectingCrops}</Text>
@@ -309,8 +308,8 @@ const styles = StyleSheet.create({
   },
   card: {
     borderColor: '#e5e7eb',
-    borderRadius: 14,
     borderWidth: 1,
+    borderRadius: 14,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -321,6 +320,10 @@ const styles = StyleSheet.create({
   cardInner: {
     flexDirection: 'row',
     height: 120,
+  },
+  severityBar: {
+    width: 7,
+    height: '100%',
   },
   pestImageBox: {
     width: 96,
