@@ -818,7 +818,7 @@ export default function FieldSelectScreen() {
   return (
     <View style={styles.container}>
       {isLoaded && !isSignedIn ? (
-        <View style={[styles.loginGate, { paddingTop: insets.top }]}>
+        <View style={styles.loginGate}>
           <MaterialIcons name="lock-outline" size={32} color="#2d4a3e" />
           <Text style={styles.loginTitle}>Log in to use My Crops</Text>
           <Text style={styles.loginCopy}>Save fields and crop types to your farmer profile.</Text>

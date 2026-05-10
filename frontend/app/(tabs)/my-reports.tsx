@@ -1,5 +1,6 @@
 import { useAuth } from '@clerk/expo';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useFocusEffect } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -8,6 +9,12 @@ import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
+import {
+  processPendingReports,
+  removePendingReport,
+  subscribeToPendingReports,
+  type PendingReport,
+} from '@/lib/report-queue';
 import { supabase } from '@/lib/supabase';
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
@@ -223,6 +230,7 @@ export default function MyReportsScreen() {
   const { isSignedIn, userId } = useAuth();
   const router = useRouter();
   const [reports, setReports] = useState<Report[]>([]);
+  const [pendingReports, setPendingReports] = useState<PendingReport[]>([]);
   const [riskScores, setRiskScores] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
@@ -285,7 +293,19 @@ export default function MyReportsScreen() {
     }
   }, [userId]);
 
+  useEffect(() => subscribeToPendingReports(setPendingReports), []);
   useEffect(() => { loadReports(); }, [loadReports]);
+  useFocusEffect(
+    useCallback(() => {
+      void processPendingReports({ reporterUserId: userId });
+      void loadReports();
+    }, [loadReports, userId])
+  );
+
+  const refreshReports = useCallback(async () => {
+    await processPendingReports({ includeFailed: true, reporterUserId: userId });
+    await loadReports();
+  }, [loadReports, userId]);
 
   async function handleDelete(reportId: string) {
     if (!userId) return;
@@ -298,13 +318,17 @@ export default function MyReportsScreen() {
       if (error) throw error;
     } catch (err) {
       console.error('Delete failed:', err);
-      loadReports();
+      void loadReports();
     }
+  }
+
+  async function handleCancelPending(localId: string) {
+    await removePendingReport(localId);
   }
 
   if (!isSignedIn) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
+      <SafeAreaView style={styles.safe} edges={[]}>
         <View style={styles.loginGate}>
           <MaterialIcons name="lock-outline" size={32} color="#2d4a3e" />
           <Text style={styles.loginTitle}>Log in to use My Data</Text>
@@ -324,7 +348,7 @@ export default function MyReportsScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={loadReports} tintColor="#2d4a3e" colors={['#2d4a3e']} />
+          <RefreshControl refreshing={loading} onRefresh={refreshReports} tintColor="#2d4a3e" colors={['#2d4a3e']} />
         }
       >
         <Text style={styles.heading}>My Data</Text>
@@ -335,7 +359,20 @@ export default function MyReportsScreen() {
 
         <Text style={styles.subheading}>Your reports</Text>
 
-        {!loading && reports.length === 0 ? (
+        {pendingReports.length > 0 ? (
+          <View style={styles.pendingList}>
+            {pendingReports.map((report) => (
+              <PendingReportCard
+                key={report.localId}
+                report={report}
+                onCancel={() => handleCancelPending(report.localId)}
+                onRetry={refreshReports}
+              />
+            ))}
+          </View>
+        ) : null}
+
+        {!loading && reports.length === 0 && pendingReports.length === 0 ? (
           <View style={styles.emptyCard}>
             <MaterialIcons name="eco" size={32} color="#d1d5db" />
             <Text style={styles.emptyTitle}>No reports yet</Text>
@@ -356,6 +393,55 @@ export default function MyReportsScreen() {
         )}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function PendingReportCard({
+  report,
+  onCancel,
+  onRetry,
+}: {
+  report: PendingReport;
+  onCancel: () => void;
+  onRetry: () => void;
+}) {
+  const date = new Date(report.createdAt).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  const isUploading = report.status === 'uploading';
+  const statusLabel = report.status === 'failed' ? 'Needs retry' : isUploading ? 'Uploading' : 'Saved';
+
+  return (
+    <View style={[styles.card, styles.pendingCard]}>
+      <Image source={{ uri: report.imageUri }} style={styles.cardImage} contentFit="cover" />
+      <View style={styles.cardContent}>
+        <View style={styles.pendingTitleRow}>
+          <Text style={styles.pestName} numberOfLines={1}>Pending report</Text>
+          <View style={styles.pendingBadge}>
+            <Text style={styles.pendingBadgeText}>{statusLabel}</Text>
+          </View>
+        </View>
+        <View style={styles.metaRow}>
+          <MaterialIcons name={isUploading ? 'sync' : 'cloud-off'} size={13} color="#9ca3af" />
+          <Text style={styles.metaText}>
+            {isUploading ? 'Trying now' : `Will upload when online · ${date}`}
+          </Text>
+        </View>
+        {report.lastError ? (
+          <Text style={styles.pendingError} numberOfLines={1}>{report.lastError}</Text>
+        ) : null}
+        <View style={styles.pendingActions}>
+          <Pressable style={styles.pendingRetryButton} disabled={isUploading} onPress={onRetry}>
+            <Text style={styles.pendingRetryText}>{isUploading ? 'Uploading...' : 'Retry now'}</Text>
+          </Pressable>
+          <Pressable style={styles.pendingCancelButton} onPress={onCancel}>
+            <Text style={styles.pendingCancelText}>Cancel</Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
   );
 }
 
@@ -507,6 +593,10 @@ const styles = StyleSheet.create({
   list: {
     gap: 10,
   },
+  pendingList: {
+    gap: 10,
+    marginBottom: 12,
+  },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -521,6 +611,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 4,
     elevation: 1,
+  },
+  pendingCard: {
+    alignItems: 'flex-start',
+    borderColor: '#bfdbfe',
+    backgroundColor: '#f8fbff',
   },
   cardImage: {
     width: 56,
@@ -544,6 +639,58 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_700Bold',
     fontWeight: '700',
     color: '#111827',
+  },
+  pendingActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  pendingBadge: {
+    backgroundColor: '#dbeafe',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  pendingBadgeText: {
+    color: '#1d4ed8',
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  pendingCancelButton: {
+    borderColor: '#e5e7eb',
+    borderRadius: 9,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  pendingCancelText: {
+    color: '#6b7280',
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  pendingError: {
+    color: '#b91c1c',
+    fontFamily: 'Outfit_500Medium',
+    fontSize: 12,
+  },
+  pendingRetryButton: {
+    backgroundColor: '#2d4a3e',
+    borderRadius: 9,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  pendingRetryText: {
+    color: '#fff',
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  pendingTitleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
   },
   metaRow: {
     flexDirection: 'row',

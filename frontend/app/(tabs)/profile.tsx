@@ -163,8 +163,8 @@ function AuthForm() {
         </Animated.View>
 
         <AnticipateLogoSvg width={160} height={67} style={{ marginBottom: -8 }} />
-        <Text style={styles.authTitle}>{mode === 'signIn' ? 'Welcome back!' : 'Create Account'}</Text>
-        <Text style={styles.authSub}>{mode === 'signIn' ? 'Sign in to continue' : 'Sign up to get started'}</Text>
+        <Text style={styles.authTitle}>{mode === 'signIn' ? 'Log In' : 'Sign Up'}</Text>
+        {/* <Text style={styles.authSub}>{mode === 'signIn' ? '' : ''}</Text> */}
 
         {mode === 'signUp' && (
           <View style={styles.fieldGroup}>
@@ -174,7 +174,7 @@ function AuthForm() {
         )}
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Email address</Text>
+          <Text style={styles.label}>Email Address</Text>
           <TextInput style={styles.input} autoCapitalize="none" keyboardType="email-address" placeholder="you@example.com" placeholderTextColor="#9aada0" value={email} onChangeText={setEmail} />
         </View>
 

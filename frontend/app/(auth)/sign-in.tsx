@@ -167,8 +167,8 @@ export default function SignInScreen() {
         </Animated.View>
 
         <View style={styles.headerSection}>
-          <Text style={styles.heading}>{mode === 'signIn' ? 'Welcome back!' : 'Create Account'}</Text>
-          <Text style={styles.subheading}>{mode === 'signIn' ? 'Sign in to continue' : 'Sign up to get started'}</Text>
+          <Text style={styles.heading}>{mode === 'signIn' ? 'Log In' : 'Sign Up'}</Text>
+          <Text style={styles.subheading}>{mode === 'signIn' ? '' : ''}</Text>
         </View>
 
         <View style={styles.form}>
@@ -186,7 +186,7 @@ export default function SignInScreen() {
           )}
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Email address</Text>
+            <Text style={styles.label}>Email Address</Text>
             <TextInput
               style={styles.input}
               autoCapitalize="none"

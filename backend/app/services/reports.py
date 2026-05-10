@@ -3,6 +3,7 @@ import logging
 from app.config import get_settings
 from app.models import (
     AnalysisResponse,
+    FieldAlert,
     RecomputeAllAffectedFieldsResponse,
     RecomputeFarmerFieldsResponse,
     ReportResponse,
@@ -19,6 +20,7 @@ from app.services.push_notifications import notify_affected_field_owners
 from app.services.report_db import (
     delete_all_affected_fields,
     delete_affected_fields_for_fields,
+    list_farmer_field_ids_for_user,
     list_farmer_field_owner_user_ids,
     insert_report,
     list_reports_for_recompute,
@@ -75,15 +77,14 @@ def submit_report(
         spread=spread,
     )
 
-    try:
-        notify_affected_field_owners(
-            report_id=report_id,
-            reporter_user_id=reporter_user_id,
-            analysis=analysis,
-            alerts=spread.alerts,
-        )
-    except Exception as error:
-        logger.warning("Unable to send affected field push notifications: %s", error)
+    populate_and_notify_report_alerts(
+        report_id=report_id,
+        analysis=analysis,
+        crop_type=crop_type,
+        latitude=latitude,
+        longitude=longitude,
+        reporter_user_id=reporter_user_id,
+    )
 
     return ReportResponse(
         report_id=report_id,
@@ -92,6 +93,77 @@ def submit_report(
         analysis=analysis,
         spread=spread,
     )
+
+
+def populate_and_notify_report_alerts(
+    report_id: str,
+    analysis: AnalysisResponse,
+    crop_type: str,
+    latitude: float,
+    longitude: float,
+    reporter_user_id: str | None = None,
+) -> int:
+    farmer_user_ids = list_farmer_field_owner_user_ids()
+    notified_field_ids: set[int] = set()
+    affected_fields_upserted = 0
+
+    logger.info(
+        "Populating report alerts for notification report_id=%s farmer_owner_count=%s",
+        report_id,
+        len(farmer_user_ids),
+    )
+
+    for farmer_user_id in farmer_user_ids:
+        spread = calculate_report_spread(
+            analysis=analysis,
+            crop_type=crop_type,
+            latitude=latitude,
+            longitude=longitude,
+            reporter_user_id=farmer_user_id,
+        )
+        if not spread.alerts:
+            continue
+
+        upserted_count = upsert_affected_fields(report_id=report_id, spread=spread)
+        affected_fields_upserted += upserted_count
+
+        notification_alerts = _alerts_not_already_notified(spread.alerts, notified_field_ids)
+        if not notification_alerts:
+            continue
+
+        try:
+            notify_affected_field_owners(
+                report_id=report_id,
+                reporter_user_id=reporter_user_id,
+                analysis=analysis,
+                alerts=notification_alerts,
+            )
+        except Exception as error:
+            logger.warning("Unable to send affected field push notifications: %s", error)
+
+    logger.info(
+        "Finished report alert notifications report_id=%s upserted=%s notified_fields=%s",
+        report_id,
+        affected_fields_upserted,
+        len(notified_field_ids),
+    )
+
+    return affected_fields_upserted
+
+
+def _alerts_not_already_notified(alerts: list[FieldAlert], notified_field_ids: set[int]) -> list[FieldAlert]:
+    next_alerts: list[FieldAlert] = []
+    for alert in alerts:
+        try:
+            field_id = int(alert.field_id)
+        except ValueError:
+            continue
+        if field_id in notified_field_ids:
+            continue
+        notified_field_ids.add(field_id)
+        next_alerts.append(alert)
+
+    return next_alerts
 
 
 def recompute_farmer_field_alerts(
@@ -103,6 +175,8 @@ def recompute_farmer_field_alerts(
     filtered_field_ids = set(field_ids or [])
     if field_id is not None:
         filtered_field_ids.add(field_id)
+    if not filtered_field_ids:
+        filtered_field_ids = set(list_farmer_field_ids_for_user(reporter_user_id))
 
     logger.info(
         "Starting farmer field alert recompute reporter_user_id=%s filtered_field_ids=%s send_notifications=%s",
@@ -111,9 +185,19 @@ def recompute_farmer_field_alerts(
         send_notifications,
     )
 
-    if filtered_field_ids:
-        delete_affected_fields_for_fields(filtered_field_ids)
-        logger.info("Deleted affected fields for field_ids=%s", sorted(filtered_field_ids))
+    if not filtered_field_ids:
+        logger.info("No saved farmer field IDs found for reporter_user_id=%s", reporter_user_id)
+        return RecomputeFarmerFieldsResponse(
+            reporter_user_id=reporter_user_id,
+            field_id=field_id,
+            field_ids=None,
+            reports_checked=0,
+            reports_with_alerts=0,
+            affected_fields_upserted=0,
+        )
+
+    delete_affected_fields_for_fields(filtered_field_ids)
+    logger.info("Deleted affected fields for field_ids=%s", sorted(filtered_field_ids))
 
     reports = list_reports_for_recompute()
     logger.info("Loaded %s report(s) for farmer field recompute", len(reports))
@@ -131,7 +215,7 @@ def recompute_farmer_field_alerts(
         matching_alerts = [
             alert
             for alert in spread.alerts
-            if not filtered_field_ids or int(alert.field_id) in filtered_field_ids
+            if int(alert.field_id) in filtered_field_ids
         ]
         if not matching_alerts:
             logger.info("Report %s produced no matching farmer field alert(s)", report.id)
@@ -141,7 +225,7 @@ def recompute_farmer_field_alerts(
         upserted_count = upsert_affected_fields(
             report_id=report.id,
             spread=filtered_spread,
-            field_ids=filtered_field_ids or None,
+            field_ids=filtered_field_ids,
         )
         affected_fields_upserted += upserted_count
         reports_with_alerts += 1
@@ -177,7 +261,6 @@ def recompute_farmer_field_alerts(
         reports_with_alerts=reports_with_alerts,
         affected_fields_upserted=affected_fields_upserted,
     )
-
 
 def repopulate_all_affected_fields() -> RecomputeAllAffectedFieldsResponse:
     logger.info("Starting full affected fields repopulation")

@@ -2,6 +2,7 @@ import { useAuth, useUser } from '@clerk/expo';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
+import { router } from 'expo-router';
 import { useEffect, useMemo, useRef } from 'react';
 import { Platform } from 'react-native';
 
@@ -106,6 +107,19 @@ export function PushNotificationsBootstrap() {
       cancelled = true;
     };
   }, [authenticatedSupabase, isLoaded, isSignedIn, user, userId]);
+
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const reportId = response.notification.request.content.data?.reportId;
+      if (typeof reportId === 'string' && reportId.length > 0) {
+        router.push(`/alert/${reportId}`);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   return null;
 }

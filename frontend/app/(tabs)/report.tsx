@@ -1,3 +1,4 @@
+import { useAuth } from '@clerk/expo';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useIsFocused } from '@react-navigation/native';
 import { CameraType, CameraView, FlashMode, useCameraPermissions } from 'expo-camera';
@@ -16,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ReportScreen() {
   const router = useRouter();
+  const { isSignedIn, isLoaded } = useAuth();
   const isFocused = useIsFocused();
   const cameraRef = useRef<CameraView>(null);
   const zoomStartRef = useRef(0);
@@ -83,6 +85,21 @@ export default function ReportScreen() {
     if (event.nativeEvent.oldState === State.ACTIVE) {
       zoomStartRef.current = zoom;
     }
+  }
+
+  if (isLoaded && !isSignedIn) {
+    return (
+      <SafeAreaView style={styles.container} edges={[]}>
+        <View style={styles.loginGate}>
+          <MaterialIcons name="lock-outline" size={32} color="#2d4a3e" />
+          <Text style={styles.loginTitle}>Log in to use Take Photo</Text>
+          <Text style={styles.loginCopy}>Submit pest reports and analyze field health.</Text>
+          <Pressable style={styles.loginButton} onPress={() => router.push('/(tabs)/profile')}>
+            <Text style={styles.loginButtonText}>Log In</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   if (!permission) {
@@ -355,6 +372,43 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     fontSize: 12,
     color: '#191C1A',
+  },
+  loginGate: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 40,
+  },
+  loginTitle: {
+    color: '#111827',
+    fontSize: 19,
+    fontFamily: 'Outfit_700Bold',
+    fontWeight: '700',
+    marginTop: 10,
+    textAlign: 'center',
+  },
+  loginCopy: {
+    color: '#4b5563',
+    fontSize: 14,
+    fontFamily: 'Outfit_400Regular',
+    fontWeight: '400',
+    lineHeight: 20,
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  loginButton: {
+    alignItems: 'center',
+    backgroundColor: '#2d4a3e',
+    borderRadius: 14,
+    marginTop: 16,
+    paddingHorizontal: 22,
+    paddingVertical: 13,
+  },
+  loginButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontFamily: 'Outfit_700Bold',
+    fontWeight: '900',
   },
   permissionState: {
     flex: 1,
