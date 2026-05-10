@@ -1,3 +1,5 @@
+import logging
+
 from app.config import get_settings
 from app.models import (
     ReportResponse,
@@ -6,10 +8,13 @@ from app.models import (
     SpreadSource,
 )
 from app.services.analysis import analyze_report
-from app.services.fields import get_candidate_fields
+from app.services.fields import get_candidate_farmer_fields, get_candidate_fields
 from app.services.report_db import insert_report
 from app.services.spread import calculate_spread
 from app.services.storage import upload_report_image
+
+
+logger = logging.getLogger("yologuard.timing")
 
 
 def submit_report(
@@ -36,13 +41,28 @@ def submit_report(
         longitude=longitude,
     )
 
-    fields = get_candidate_fields(
-        latitude=latitude,
-        longitude=longitude,
-        radius_miles=max(
-            analysis.travel_distance,
-            settings.candidate_field_radius_miles,
-        ),
+    radius_miles = max(
+        analysis.travel_distance,
+        settings.candidate_field_radius_miles,
+    )
+    if reporter_user_id:
+        fields = get_candidate_farmer_fields(
+            reporter_user_id=reporter_user_id,
+            latitude=latitude,
+            longitude=longitude,
+            radius_miles=radius_miles,
+        )
+    else:
+        fields = get_candidate_fields(
+            latitude=latitude,
+            longitude=longitude,
+            radius_miles=radius_miles,
+        )
+    logger.info(
+        "reports candidate_fields source=%s count=%s radius_miles=%.3f",
+        "farmer_fields" if reporter_user_id else "fields",
+        len(fields),
+        radius_miles,
     )
 
     spread = calculate_spread(

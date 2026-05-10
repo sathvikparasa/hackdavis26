@@ -1,3 +1,5 @@
+import logging
+import time
 from typing import List, Optional
 
 from google import genai
@@ -11,6 +13,7 @@ from app.services.ipm_search import search_ipm
 SUPPORTED_SPREAD_METHODS = "wind, water, adjacency"
 MAX_IDENTIFICATION_TOOL_CALLS = 5
 MAX_ANALYSIS_TOOL_CALLS = 6
+logger = logging.getLogger("yologuard.timing")
 
 
 SEARCH_IPM_TOOL = types.Tool(
@@ -77,7 +80,8 @@ def identify_pest(
 
     client = _client()
 
-    for _ in range(MAX_IDENTIFICATION_TOOL_CALLS):
+    for call_number in range(1, MAX_IDENTIFICATION_TOOL_CALLS + 1):
+        started = time.perf_counter()
         response = client.models.generate_content(
             model=settings.gemini_vision_model,
             contents=messages,
@@ -91,6 +95,12 @@ def identify_pest(
                     )
                 ),
             ),
+        )
+        logger.info(
+            "gemini stage=identify_pest_tool_loop call=%s model=%s duration_ms=%.1f",
+            call_number,
+            settings.gemini_vision_model,
+            (time.perf_counter() - started) * 1000,
         )
 
         candidate = response.candidates[0]
@@ -131,6 +141,7 @@ def identify_pest(
         )
     )
 
+    started = time.perf_counter()
     final = client.models.generate_content(
         model=settings.gemini_vision_model,
         contents=messages,
@@ -140,6 +151,11 @@ def identify_pest(
             response_mime_type="application/json",
             response_schema=PestIdentification,
         ),
+    )
+    logger.info(
+        "gemini stage=identify_pest_final model=%s duration_ms=%.1f",
+        settings.gemini_vision_model,
+        (time.perf_counter() - started) * 1000,
     )
 
     if not final.parsed:
@@ -179,7 +195,8 @@ def synthesize_analysis(
 
     client = _client()
 
-    for _ in range(MAX_ANALYSIS_TOOL_CALLS):
+    for call_number in range(1, MAX_ANALYSIS_TOOL_CALLS + 1):
+        started = time.perf_counter()
         response = client.models.generate_content(
             model=settings.gemini_analysis_model,
             contents=messages,
@@ -193,6 +210,12 @@ def synthesize_analysis(
                     )
                 ),
             ),
+        )
+        logger.info(
+            "gemini stage=synthesize_analysis_tool_loop call=%s model=%s duration_ms=%.1f",
+            call_number,
+            settings.gemini_analysis_model,
+            (time.perf_counter() - started) * 1000,
         )
 
         candidate = response.candidates[0]
@@ -243,6 +266,7 @@ def synthesize_analysis(
         )
     )
 
+    started = time.perf_counter()
     final = client.models.generate_content(
         model=settings.gemini_analysis_model,
         contents=messages,
@@ -252,6 +276,11 @@ def synthesize_analysis(
             response_mime_type="application/json",
             response_schema=AnalysisResponse,
         ),
+    )
+    logger.info(
+        "gemini stage=synthesize_analysis_final model=%s duration_ms=%.1f",
+        settings.gemini_analysis_model,
+        (time.perf_counter() - started) * 1000,
     )
 
     if not final.parsed:

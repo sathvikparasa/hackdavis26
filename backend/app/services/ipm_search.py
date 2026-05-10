@@ -1,3 +1,5 @@
+import logging
+import time
 from typing import List
 
 import psycopg
@@ -8,14 +10,24 @@ from app.config import get_settings
 from app.models import IpmChunk
 
 
+logger = logging.getLogger("yologuard.timing")
+
+
 def search_ipm(query: str) -> List[IpmChunk]:
+    started = time.perf_counter()
     settings = get_settings()
     if not settings.supabase_db_url:
         raise RuntimeError("Missing SUPABASE_DB_URL")
     if not settings.gemini_api_key:
         raise RuntimeError("Missing GEMINI_API_KEY")
 
+    embedding_started = time.perf_counter()
     query_embedding = _vector_literal(_embed_query(query))
+    logger.info(
+        "ipm_search stage=embed query=%r duration_ms=%.1f",
+        query[:120],
+        (time.perf_counter() - embedding_started) * 1000,
+    )
 
     sql = """
     select
@@ -31,10 +43,22 @@ def search_ipm(query: str) -> List[IpmChunk]:
     limit %s;
     """
 
+    db_started = time.perf_counter()
     with psycopg.connect(settings.supabase_db_url, prepare_threshold=None) as conn:
         with conn.cursor() as cur:
             cur.execute(sql, (query_embedding, query_embedding, settings.ipm_match_count))
             rows = cur.fetchall()
+    logger.info(
+        "ipm_search stage=db query=%r rows=%s duration_ms=%.1f",
+        query[:120],
+        len(rows),
+        (time.perf_counter() - db_started) * 1000,
+    )
+    logger.info(
+        "ipm_search total query=%r duration_ms=%.1f",
+        query[:120],
+        (time.perf_counter() - started) * 1000,
+    )
 
     return [
         IpmChunk(

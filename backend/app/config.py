@@ -21,7 +21,7 @@ class Settings:
     candidate_field_radius_miles: float = 10
     supabase_db_url: Optional[str] = None
     supabase_url: Optional[str] = None
-    supabase_service_role_key: Optional[str] = None
+    supabase_secret_key: Optional[str] = None
     supabase_report_image_bucket: str = "report-images"
     clerk_issuer: Optional[str] = None
 
@@ -37,7 +37,7 @@ def get_settings() -> Settings:
         candidate_field_radius_miles=float(os.getenv("CANDIDATE_FIELD_RADIUS_MILES", "10")),
         supabase_db_url=os.getenv("SUPABASE_DB_URL"),
         supabase_url=os.getenv("SUPABASE_URL"),
-        supabase_service_role_key=os.getenv("SUPABASE_SERVICE_ROLE_KEY"),
+        supabase_secret_key=os.getenv("SUPABASE_SECRET_KEY"),
         supabase_report_image_bucket=os.getenv("SUPABASE_REPORT_IMAGE_BUCKET", "report-images"),
         clerk_issuer=os.getenv("CLERK_ISSUER"),
     )
