@@ -89,6 +89,8 @@ const VIEWPORT_PADDING_RATIO = 0.15;
 const DUPLICATE_TAP_GUARD_MS = 250;
 const CROP_PANEL_HEIGHT = 176;
 const UI_FIELD_PADDING = 22;
+const ALERT_RECOMPUTE_DEBOUNCE_MS = 3500;
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const YOLO_COUNTY_BOUNDARY = [
   { latitude: 38.9247, longitude: -122.3762 },
   { latitude: 38.9254, longitude: -122.404 },
@@ -189,7 +191,7 @@ const localLocationSuggestions: LocationSuggestion[] = [
 ];
 
 export default function FieldSelectScreen() {
-  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { step, advance } = useTutorial();
@@ -209,6 +211,8 @@ export default function FieldSelectScreen() {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const alertRecomputeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingAlertFieldIdsRef = useRef<Set<number>>(new Set());
   const getTokenRef = useRef(getToken);
   const lastToggleRef = useRef<{ id: number; time: number } | null>(null);
   const locationAbortRef = useRef<AbortController | null>(null);
@@ -234,6 +238,14 @@ export default function FieldSelectScreen() {
   useEffect(() => {
     getTokenRef.current = getToken;
   }, [getToken]);
+
+  useEffect(() => {
+    return () => {
+      if (alertRecomputeDebounceRef.current) {
+        clearTimeout(alertRecomputeDebounceRef.current);
+      }
+    };
+  }, []);
 
   const getSupabaseToken = useCallback(async () => {
     try {
@@ -300,6 +312,28 @@ export default function FieldSelectScreen() {
     });
     setError(null);
   }, [authenticatedSupabase, getSupabaseToken]);
+
+  const scheduleAlertRecompute = useCallback((fieldId: number) => {
+    if (!userId) {
+      return;
+    }
+
+    pendingAlertFieldIdsRef.current.add(fieldId);
+    if (alertRecomputeDebounceRef.current) {
+      clearTimeout(alertRecomputeDebounceRef.current);
+    }
+
+    alertRecomputeDebounceRef.current = setTimeout(() => {
+      const fieldIds = Array.from(pendingAlertFieldIdsRef.current);
+      pendingAlertFieldIdsRef.current.clear();
+      alertRecomputeDebounceRef.current = null;
+      void recomputeFieldAlerts({
+        fieldIds,
+        reporterUserId: userId,
+        sendNotifications: false,
+      });
+    }, ALERT_RECOMPUTE_DEBOUNCE_MS);
+  }, [userId]);
 
   const loadFieldsForRegion = useCallback(async (region: Region) => {
     const requestId = ++requestIdRef.current;
@@ -566,9 +600,10 @@ export default function FieldSelectScreen() {
           return;
         }
         void refreshSavedFields();
+        scheduleAlertRecompute(fieldToSave.id);
       });
     });
-  }, [activeField, authenticatedSupabase, cropDraft, dismissCropPanel, getSupabaseToken, refreshSavedFields]);
+  }, [activeField, authenticatedSupabase, cropDraft, dismissCropPanel, getSupabaseToken, refreshSavedFields, scheduleAlertRecompute]);
 
   const removeActiveField = useCallback(() => {
     if (!activeField) {
@@ -1222,6 +1257,39 @@ async function fetchLocationSuggestions(
       };
     })
     .filter((suggestion: LocationSuggestion | null): suggestion is LocationSuggestion => Boolean(suggestion));
+}
+
+async function recomputeFieldAlerts({
+  fieldIds,
+  reporterUserId,
+  sendNotifications,
+}: {
+  fieldIds: number[];
+  reporterUserId?: string | null;
+  sendNotifications: boolean;
+}) {
+  const apiBaseUrl = API_BASE_URL?.replace(/\/$/, '');
+  if (!apiBaseUrl || !reporterUserId || fieldIds.length === 0) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${apiBaseUrl}/farmer-fields/recompute-alerts`, {
+      body: JSON.stringify({
+        field_ids: fieldIds,
+        reporter_user_id: reporterUserId,
+        send_notifications: sendNotifications,
+      }),
+      headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+    });
+
+    if (!response.ok) {
+      console.warn('Unable to recompute field alerts', await response.text());
+    }
+  } catch (recomputeError) {
+    console.warn('Unable to recompute field alerts', recomputeError);
+  }
 }
 
 function mergeLocationSuggestions(

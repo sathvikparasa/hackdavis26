@@ -106,6 +106,22 @@ class ReportResponse(BaseModel):
     spread: SpreadResponse
 
 
+class RecomputeFarmerFieldsRequest(BaseModel):
+    reporter_user_id: str
+    field_id: int | None = None
+    field_ids: list[int] | None = None
+    send_notifications: bool = True
+
+
+class RecomputeFarmerFieldsResponse(BaseModel):
+    reporter_user_id: str
+    field_id: int | None = None
+    field_ids: list[int] | None = None
+    reports_checked: int
+    reports_with_alerts: int
+    affected_fields_upserted: int
+
+
 class AnalysisInput(BaseModel):
     image_bytes: bytes
     mime_type: str

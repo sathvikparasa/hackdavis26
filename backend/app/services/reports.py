@@ -2,6 +2,8 @@ import logging
 
 from app.config import get_settings
 from app.models import (
+    AnalysisResponse,
+    RecomputeFarmerFieldsResponse,
     ReportResponse,
     SpreadAnalysis,
     SpreadMethod,
@@ -14,7 +16,12 @@ from app.services.boundary_adjacency import calculate_boundary_adjacency_alerts
 from app.services.fields import get_candidate_farmer_fields, get_candidate_fields
 from app.services.irrigation import calculate_irrigation_alerts
 from app.services.push_notifications import notify_affected_field_owners
-from app.services.report_db import insert_report
+from app.services.report_db import (
+    delete_affected_fields_for_fields,
+    insert_report,
+    list_reports_for_recompute,
+    upsert_affected_fields,
+)
 from app.services.spread import ADJACENCY_HOP_DISTANCE_MILES, calculate_spread
 from app.services.storage import upload_report_image
 
@@ -46,6 +53,115 @@ def submit_report(
         longitude=longitude,
     )
 
+    spread = calculate_report_spread(
+        analysis=analysis,
+        crop_type=crop_type,
+        latitude=latitude,
+        longitude=longitude,
+        reporter_user_id=reporter_user_id,
+    )
+
+    report_id = insert_report(
+        reporter_user_id=reporter_user_id,
+        pest_name=analysis.pest_name,
+        crop_type=crop_type,
+        latitude=latitude,
+        longitude=longitude,
+        image_bucket=settings.supabase_report_image_bucket,
+        image_path=image_path,
+        analysis=analysis,
+        spread=spread,
+    )
+
+    try:
+        notify_affected_field_owners(
+            report_id=report_id,
+            reporter_user_id=reporter_user_id,
+            analysis=analysis,
+            alerts=spread.alerts,
+        )
+    except Exception as error:
+        logger.warning("Unable to send affected field push notifications: %s", error)
+
+    return ReportResponse(
+        report_id=report_id,
+        image_bucket=settings.supabase_report_image_bucket,
+        image_path=image_path,
+        analysis=analysis,
+        spread=spread,
+    )
+
+
+def recompute_farmer_field_alerts(
+    reporter_user_id: str,
+    field_id: int | None = None,
+    field_ids: list[int] | None = None,
+    send_notifications: bool = True,
+) -> RecomputeFarmerFieldsResponse:
+    filtered_field_ids = set(field_ids or [])
+    if field_id is not None:
+        filtered_field_ids.add(field_id)
+
+    if filtered_field_ids:
+        delete_affected_fields_for_fields(filtered_field_ids)
+
+    reports = list_reports_for_recompute()
+    reports_with_alerts = 0
+    affected_fields_upserted = 0
+
+    for report in reports:
+        spread = calculate_report_spread(
+            analysis=report.analysis,
+            crop_type=report.crop_type,
+            latitude=report.latitude,
+            longitude=report.longitude,
+            reporter_user_id=reporter_user_id,
+        )
+        matching_alerts = [
+            alert
+            for alert in spread.alerts
+            if not filtered_field_ids or int(alert.field_id) in filtered_field_ids
+        ]
+        if not matching_alerts:
+            continue
+
+        filtered_spread = SpreadResponse(pest_name=spread.pest_name, alerts=matching_alerts)
+        affected_fields_upserted += upsert_affected_fields(
+            report_id=report.id,
+            spread=filtered_spread,
+            field_ids=filtered_field_ids or None,
+        )
+        reports_with_alerts += 1
+
+        if send_notifications:
+            try:
+                notify_affected_field_owners(
+                    report_id=report.id,
+                    reporter_user_id=reporter_user_id,
+                    analysis=report.analysis,
+                    alerts=matching_alerts,
+                )
+            except Exception as error:
+                logger.warning("Unable to send recomputed push notifications: %s", error)
+
+    return RecomputeFarmerFieldsResponse(
+        reporter_user_id=reporter_user_id,
+        field_id=field_id,
+        field_ids=sorted(filtered_field_ids) or None,
+        reports_checked=len(reports),
+        reports_with_alerts=reports_with_alerts,
+        affected_fields_upserted=affected_fields_upserted,
+    )
+
+
+def calculate_report_spread(
+    analysis: AnalysisResponse,
+    crop_type: str,
+    latitude: float,
+    longitude: float,
+    reporter_user_id: str | None = None,
+) -> SpreadResponse:
+    settings = get_settings()
     radius_miles = max(
         analysis.travel_distance,
         settings.candidate_field_radius_miles,
@@ -117,39 +233,9 @@ def submit_report(
     else:
         irrigation_alerts = []
 
-    spread = SpreadResponse(
+    return SpreadResponse(
         pest_name=point_spread.pest_name,
         alerts=_merge_alerts(point_spread.alerts, adjacency_alerts, irrigation_alerts),
-    )
-
-    report_id = insert_report(
-        reporter_user_id=reporter_user_id,
-        pest_name=analysis.pest_name,
-        crop_type=crop_type,
-        latitude=latitude,
-        longitude=longitude,
-        image_bucket=settings.supabase_report_image_bucket,
-        image_path=image_path,
-        analysis=analysis,
-        spread=spread,
-    )
-
-    try:
-        notify_affected_field_owners(
-            report_id=report_id,
-            reporter_user_id=reporter_user_id,
-            analysis=analysis,
-            alerts=spread.alerts,
-        )
-    except Exception as error:
-        logger.warning("Unable to send affected field push notifications: %s", error)
-
-    return ReportResponse(
-        report_id=report_id,
-        image_bucket=settings.supabase_report_image_bucket,
-        image_path=image_path,
-        analysis=analysis,
-        spread=spread,
     )
 
 
