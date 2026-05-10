@@ -139,6 +139,20 @@ def upsert_affected_fields(
     return len(filtered_alerts)
 
 
+def delete_all_affected_fields() -> int:
+    settings = get_settings()
+    if not settings.supabase_db_url:
+        raise RuntimeError("Missing SUPABASE_DB_URL")
+
+    with psycopg.connect(settings.supabase_db_url, prepare_threshold=None) as conn:
+        with conn.cursor() as cur:
+            cur.execute("delete from public.affected_fields;")
+            deleted_count = cur.rowcount
+        conn.commit()
+
+    return deleted_count
+
+
 def delete_affected_fields_for_field(field_id: int) -> int:
     return delete_affected_fields_for_fields({field_id})
 

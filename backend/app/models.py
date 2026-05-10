@@ -122,6 +122,13 @@ class RecomputeFarmerFieldsResponse(BaseModel):
     affected_fields_upserted: int
 
 
+class RecomputeAllAffectedFieldsResponse(BaseModel):
+    reports_checked: int
+    reports_with_alerts: int
+    affected_fields_deleted: int
+    affected_fields_upserted: int
+
+
 class AnalysisInput(BaseModel):
     image_bytes: bytes
     mime_type: str
