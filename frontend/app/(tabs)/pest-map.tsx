@@ -186,7 +186,11 @@ export default function PestMapScreen() {
   }, [locationQuery]);
 
   const cropFilterOptions = useMemo(() => {
-    const crops = [...new Set(alerts.map((alert) => alert.crop))].sort();
+    const crops = [
+      ...new Set(
+        alerts.flatMap((alert) => alert.vulnerableCropNames)
+      ),
+    ].sort();
     return [
       { label: 'All Crops', icon: 'eco' as const },
       ...crops.map((label) => ({ label, icon: cropIcon(label) })),
@@ -196,7 +200,9 @@ export default function PestMapScreen() {
   const filteredAlerts = useMemo(
     () =>
       alerts.filter((alert) => {
-        const cropMatch = crop === 'All Crops' || alert.crop === crop;
+        const cropMatch =
+          crop === 'All Crops' ||
+          alert.vulnerableCropNames.includes(crop);
         const pestMatch = pestType === 'All Pests' || alert.type === pestType;
         const severityMatch = severity === 'All' || alert.severity === severity;
         return cropMatch && pestMatch && severityMatch;
@@ -457,7 +463,7 @@ export default function PestMapScreen() {
               </Text>
             </View>
             <View style={styles.cropPill}>
-              <Text style={styles.cropPillText}>{selectedAlert.crop}</Text>
+              <Text style={styles.cropPillText}>{selectedAlert.vulnerableCropLabel}</Text>
             </View>
           </View>
 

@@ -3,6 +3,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { CameraType, CameraView, FlashMode, useCameraPermissions } from 'expo-camera';
 import { ImageBackground } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import {
@@ -14,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ReportScreen() {
+  const router = useRouter();
   const isFocused = useIsFocused();
   const cameraRef = useRef<CameraView>(null);
   const zoomStartRef = useRef(0);
@@ -27,6 +29,9 @@ export default function ReportScreen() {
 
   function setReportImage(uri: string | null) {
     setSelectedImageUri(uri);
+    if (uri) {
+      router.push({ pathname: '/analyzing', params: { imageUri: uri } });
+    }
   }
 
   async function takePhoto() {
@@ -162,7 +167,7 @@ export default function ReportScreen() {
             <MaterialIcons
               name={flash === 'on' ? 'flash-on' : 'flash-off'}
               size={24}
-              color="#424844"
+              color="#191C1A"
             />
           </Pressable>
           <Pressable
@@ -178,12 +183,12 @@ export default function ReportScreen() {
             </View>
           </Pressable>
           <Pressable style={styles.secondaryControl} onPress={pickFromGallery}>
-            <MaterialIcons name="photo-library" size={24} color="#424844" />
+            <MaterialIcons name="photo-library" size={24} color="#191C1A" />
           </Pressable>
         </View>
 
         <View style={styles.tipRow}>
-          <MaterialIcons name="emoji-objects" size={15} color="#424844" />
+          <MaterialIcons name="emoji-objects" size={15} color="#191C1A" />
           <Text style={styles.tipText}>Tips: Good lighting, focus on pest, include leaf/plant</Text>
         </View>
       </View>
@@ -194,7 +199,7 @@ export default function ReportScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f1a0f',
+    backgroundColor: '#ffffff',
   },
   content: {
     flex: 1,
@@ -214,7 +219,7 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#71897b',
     borderRadius: 20,
     position: 'absolute',
     right: 0,
@@ -223,13 +228,13 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_600SemiBold',
     fontWeight: '600',
     fontSize: 16,
-    color: '#fff',
+    color: '#191C1A',
   },
   instruction: {
     fontFamily: 'Outfit_400Regular',
     fontWeight: '400',
     fontSize: 13,
-    color: 'rgba(255,255,255,0.6)',
+    color: '#191C1A',
     textAlign: 'center',
   },
   cameraPreview: {
@@ -243,7 +248,7 @@ const styles = StyleSheet.create({
   },
   cameraPaused: {
     alignItems: 'center',
-    backgroundColor: '#162316',
+    backgroundColor: '#191C1A',
     justifyContent: 'center',
   },
   corner: {
@@ -291,7 +296,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#71897b',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -319,11 +324,11 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#fff',
+    backgroundColor: '#191C1A',
   },
   zoomBadge: {
     alignItems: 'center',
-    backgroundColor: 'rgba(15,26,15,0.72)',
+    backgroundColor: '#191C1A',
     borderRadius: 14,
     bottom: 14,
     justifyContent: 'center',
@@ -334,7 +339,7 @@ const styles = StyleSheet.create({
     right: 14,
   },
   zoomBadgeText: {
-    color: '#fff',
+    color: '#191C1A',
     fontFamily: 'Outfit_600SemiBold',
     fontSize: 12,
     fontWeight: '600',
@@ -349,7 +354,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_400Regular',
     fontWeight: '400',
     fontSize: 12,
-    color: 'rgba(255,255,255,0.45)',
+    color: '#191C1A',
   },
   permissionState: {
     flex: 1,
@@ -383,7 +388,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_600SemiBold',
     fontWeight: '600',
     fontSize: 15,
-    color: '#fff',
+    color: '#191C1A',
   },
 });
 

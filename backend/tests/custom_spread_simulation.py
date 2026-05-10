@@ -276,26 +276,26 @@ def render(
     parts.append(
         '<defs>'
         '<linearGradient id="fieldGradient" x1="0" x2="1" y1="0" y2="1">'
-        '<stop offset="0%" stop-color="#60a5fa" />'
-        '<stop offset="100%" stop-color="#1d4ed8" />'
+        '<stop offset="0%" stop-color="#dcffad" />'
+        '<stop offset="100%" stop-color="#b8f36f" />'
         '</linearGradient>'
         '<linearGradient id="waterGradient" x1="0" x2="1" y1="0" y2="1">'
-        '<stop offset="0%" stop-color="#67e8f9" />'
-        '<stop offset="100%" stop-color="#0e7490" />'
+        '<stop offset="0%" stop-color="#d8ffac" />'
+        '<stop offset="100%" stop-color="#8be7c4" />'
         '</linearGradient>'
         '<marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">'
-        '<path d="M0,0 L0,6 L9,3 z" fill="#1d4ed8" />'
+        '<path d="M0,0 L0,6 L9,3 z" fill="#d6ff9f" />'
         '</marker>'
         '</defs>'
     )
 
     parts.append(
-        '<rect x="18" y="18" width="1064" height="684" rx="26" fill="#ffffff" '
-        'stroke="#dbeafe" stroke-width="2" />'
+        '<rect x="18" y="18" width="1064" height="684" rx="8" fill="#101f24" '
+        'stroke="#7c3cff" stroke-width="3" />'
     )
     parts.append(
         '<path d="M70 628 C240 568 345 674 514 610 C687 545 755 641 1010 574" '
-        'fill="none" stroke="#e0f2fe" stroke-width="42" stroke-linecap="round" opacity="0.9" />'
+        'fill="none" stroke="#203941" stroke-width="42" stroke-linecap="round" opacity="0.72" />'
     )
 
     if show_district:
@@ -305,11 +305,11 @@ def render(
         district_h = district_y2 - district_y
         parts.append(
             f'<rect x="{district_x}" y="{district_y}" width="{district_w}" height="{district_h}" '
-            'rx="24" fill="#cffafe" fill-opacity="0.64" stroke="#0891b2" stroke-width="3" />'
+            'rx="10" fill="#1b3942" fill-opacity="0.88" stroke="#d6ff9f" stroke-width="3" />'
         )
         parts.append(
             f'<text x="{district_x + 18:.1f}" y="{district_y + 30:.1f}" font-size="17" '
-            'font-weight="800" fill="#155e75">Shared irrigation district</text>'
+            'font-weight="800" fill="#d6ff9f">Shared irrigation district</text>'
         )
 
     if show_wind:
@@ -322,16 +322,16 @@ def render(
         parts.append(
             f'<path d="M {sx:.1f} {sy:.1f} L {left_x:.1f} {left_y:.1f} '
             f'Q {far_x:.1f} {far_y:.1f} {right_x:.1f} {right_y:.1f} Z" '
-            'fill="#bfdbfe" fill-opacity="0.42" stroke="#2563eb" stroke-width="3" '
+            'fill="#d6ff9f" fill-opacity="0.16" stroke="#d6ff9f" stroke-width="3" '
             'stroke-dasharray="12 8" />'
         )
         parts.append(
             f'<line x1="{sx:.1f}" y1="{sy:.1f}" x2="{far_x:.1f}" y2="{far_y:.1f}" '
-            'stroke="#2563eb" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)" />'
+            'stroke="#d6ff9f" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)" />'
         )
         parts.append(
             f'<text x="{far_x + 12:.1f}" y="{far_y + 22:.1f}" font-size="17" '
-            'font-weight="900" fill="#1d4ed8">wind direction</text>'
+            'font-weight="900" fill="#d6ff9f">wind direction</text>'
         )
 
     if not show_district and not show_wind:
@@ -345,7 +345,7 @@ def render(
                 sx, sy, ex, ey = trimmed_connector(start, end, project, scale)
                 parts.append(
                     f'<line x1="{sx:.1f}" y1="{sy:.1f}" x2="{ex:.1f}" y2="{ey:.1f}" '
-                    'stroke="#1d4ed8" stroke-width="4" stroke-linecap="round" '
+                    'stroke="#d6ff9f" stroke-width="4" stroke-linecap="round" '
                     'marker-end="url(#arrow)" opacity="0.72" />'
                 )
 
@@ -354,8 +354,8 @@ def render(
         sx, sy = field_center(source, project)
         radius = IRRIGATION_RADIUS_MILES * scale
         parts.append(
-            f'<circle cx="{sx:.1f}" cy="{sy:.1f}" r="{radius:.1f}" fill="#06b6d4" '
-            'fill-opacity="0.045" stroke="#06b6d4" stroke-width="2" stroke-dasharray="10 9" />'
+            f'<circle cx="{sx:.1f}" cy="{sy:.1f}" r="{radius:.1f}" fill="#d6ff9f" '
+            'fill-opacity="0.035" stroke="#d6ff9f" stroke-width="2" stroke-dasharray="10 9" />'
         )
 
     for field in fields:
@@ -365,33 +365,35 @@ def render(
         outside_district = show_district and same_crop and not is_inside_irrigation_district(field)
         outside_wind_cone = show_wind and same_crop and field.id not in reached_ids
         wrong_crop = field.crop != "almonds"
-        fill = "url(#waterGradient)" if reached and show_district else ("url(#fieldGradient)" if reached else "#f8fafc")
-        stroke = "#0e7490" if reached and show_district else ("#1d4ed8" if reached else "#94a3b8")
+        fill = "url(#waterGradient)" if reached and show_district else ("url(#fieldGradient)" if reached else "#1c3942")
+        stroke = "#d6ff9f" if reached else "#385761"
         if reached and show_wind:
-            fill = "#3b82f6"
-            stroke = "#1d4ed8"
+            fill = "#d6ff9f"
+            stroke = "#ecffd1"
         if wrong_crop:
-            fill = "#fde68a"
-            stroke = "#b45309"
+            fill = "#172a31"
+            stroke = "#c1d4d9"
         if outside_district:
-            fill = "#e5e7eb"
-            stroke = "#64748b"
+            fill = "#172a31"
+            stroke = "#6e8790"
         if outside_wind_cone:
-            fill = "#e5e7eb"
-            stroke = "#64748b"
+            fill = "#172a31"
+            stroke = "#6e8790"
         dash = 'stroke-dasharray="7 5"' if outside_district or outside_wind_cone else ""
+        label_fill = "#0d1d22" if reached else "#d6ff9f"
+        crop_fill = "#a8bdc3" if not reached else "#173016"
         parts.append(
             f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" '
             f'rx="6" fill="{fill}" stroke="{stroke}" stroke-width="2.5" '
-            f'{dash} filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" />'
+            f'{dash} filter="drop-shadow(0 8px 12px rgba(0,0,0,0.34))" />'
         )
         parts.append(
             f'<text x="{x + w / 2:.1f}" y="{y + h / 2 + 5:.1f}" font-size="15" '
-            f'font-weight="900" text-anchor="middle" fill="#0f172a">{field.id}</text>'
+            f'font-weight="900" text-anchor="middle" fill="{label_fill}">{field.id}</text>'
         )
         parts.append(
             f'<text x="{x + w / 2:.1f}" y="{y + h + 16:.1f}" font-size="11" '
-            f'text-anchor="middle" fill="#374151">{field.crop}</text>'
+            f'text-anchor="middle" fill="{crop_fill}">{field.crop}</text>'
         )
 
     source = fields[0]
@@ -400,20 +402,20 @@ def render(
     label_height = 30
     source_label_x = sx - label_width - 42
     source_label_y = sy - 54 if show_district else sy - 48
-    parts.append(f'<circle cx="{sx:.1f}" cy="{sy:.1f}" r="10" fill="#ef4444" stroke="#7f1d1d" stroke-width="3" />')
+    parts.append(f'<circle cx="{sx:.1f}" cy="{sy:.1f}" r="10" fill="#7c3cff" stroke="#efe5ff" stroke-width="3" />')
     parts.append(
         f'<line x1="{sx - 8:.1f}" y1="{sy - 8:.1f}" '
         f'x2="{source_label_x + label_width:.1f}" y2="{source_label_y + label_height / 2:.1f}" '
-        'stroke="#7f1d1d" stroke-width="2" stroke-linecap="round" />'
+        'stroke="#d6ff9f" stroke-width="2" stroke-linecap="round" />'
     )
     parts.append(
         f'<rect x="{source_label_x:.1f}" y="{source_label_y:.1f}" '
         f'width="{label_width}" height="{label_height}" rx="15" '
-        'fill="#fff1f2" stroke="#ef4444" stroke-width="2" />'
+        'fill="#d6ff9f" stroke="#ecffd1" stroke-width="2" />'
     )
     parts.append(
         f'<text x="{source_label_x + label_width / 2:.1f}" y="{source_label_y + 20:.1f}" '
-        'font-size="14" font-weight="900" text-anchor="middle" fill="#7f1d1d">report location</text>'
+        'font-size="14" font-weight="900" text-anchor="middle" fill="#0d1d22">report location</text>'
     )
 
     metric_cards = "".join(
@@ -438,59 +440,76 @@ def render(
   <style>
     :root {{ color-scheme: light; }}
     body {{
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       margin: 0;
-      color: #0f172a;
-      background: #eef6f3;
+      color: #efffe5;
+      background: #eef0f5;
     }}
-    main {{ padding: 34px; max-width: 1500px; margin: 0 auto; }}
-    h1 {{ font-size: 34px; line-height: 1.05; margin: 0 0 8px; letter-spacing: 0; }}
-    .subtitle {{ margin: 0 0 22px; color: #475569; font-size: 17px; max-width: 880px; }}
-    .wrap {{ display: grid; grid-template-columns: minmax(0, 1fr) 410px; gap: 22px; align-items: start; }}
+    main {{ padding: 20px; max-width: 1440px; margin: 0 auto; }}
+    .slide {{
+      background: #101f24;
+      border: 4px solid #7c3cff;
+      min-height: calc(100vh - 48px);
+      padding: 58px 74px 64px;
+      box-sizing: border-box;
+    }}
+    h1 {{
+      font-size: 50px;
+      line-height: 0.96;
+      margin: 0 0 12px;
+      letter-spacing: 0;
+      color: #d6ff9f;
+      max-width: 900px;
+    }}
+    .subtitle {{ margin: 0 0 28px; color: #b9cdd2; font-size: 17px; max-width: 930px; }}
+    .wrap {{ display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 24px; align-items: stretch; }}
     .map-card, .panel {{
-      background: rgba(255,255,255,0.9);
-      border: 1px solid rgba(148,163,184,0.35);
-      border-radius: 18px;
-      box-shadow: 0 20px 45px rgba(15,23,42,0.12);
+      background: #142b33;
+      border: 1px solid #21444e;
+      border-radius: 8px;
+      box-shadow: 0 22px 48px rgba(0,0,0,0.22);
       overflow: hidden;
     }}
-    svg {{ width: 100%; height: auto; display: block; background: #ecfeff; }}
-    .panel {{ padding: 20px; }}
+    svg {{ width: 100%; height: auto; display: block; background: #101f24; }}
+    .panel {{ padding: 18px; }}
     .metrics {{ display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }}
-    .metric {{ border: 1px solid #dbeafe; border-radius: 12px; padding: 11px; background: #f8fafc; }}
-    .metric strong {{ display: block; font-size: 11px; text-transform: uppercase; color: #64748b; letter-spacing: .08em; }}
-    .metric span {{ display: block; margin-top: 5px; font-size: 22px; font-weight: 850; color: #0f172a; }}
-    .panel h2 {{ font-size: 15px; margin: 16px 0 8px; color: #334155; }}
-    ul {{ padding-left: 18px; margin: 0; color: #334155; line-height: 1.42; }}
+    .metric {{ border: 1px solid #244b56; border-radius: 8px; padding: 11px; background: #1a3841; }}
+    .metric strong {{ display: block; font-size: 10px; text-transform: uppercase; color: #a8bdc3; letter-spacing: .08em; }}
+    .metric span {{ display: block; margin-top: 5px; font-size: 22px; font-weight: 850; color: #d6ff9f; }}
+    .panel h2 {{ font-size: 15px; margin: 16px 0 8px; color: #d6ff9f; }}
+    ul {{ padding-left: 18px; margin: 0; color: #d7e7e0; line-height: 1.42; }}
     li {{ margin: 7px 0; }}
     details {{ margin-top: 18px; }}
-    summary {{ cursor: pointer; color: #2563eb; font-weight: 700; }}
-    pre {{ white-space: pre-wrap; background: #0f172a; color: #e2e8f0; padding: 14px; border-radius: 12px; font-size: 12px; max-height: 290px; overflow: auto; }}
-    .legend {{ display: flex; flex-wrap: wrap; gap: 10px 16px; margin: 10px 0 20px; font-size: 14px; color: #334155; }}
-    .swatch {{ display: inline-block; width: 16px; height: 16px; margin-right: 7px; vertical-align: -3px; border: 1px solid #64748b; border-radius: 4px; }}
+    summary {{ cursor: pointer; color: #d6ff9f; font-weight: 700; }}
+    pre {{ white-space: pre-wrap; background: #0a1519; color: #d7e7e0; padding: 14px; border-radius: 8px; font-size: 12px; max-height: 290px; overflow: auto; }}
+    .legend {{ display: flex; flex-wrap: wrap; gap: 10px 14px; margin: 10px 0 24px; font-size: 13px; color: #d7e7e0; }}
+    .legend span {{ background: #1a3841; border-radius: 8px; padding: 8px 10px; }}
+    .swatch {{ display: inline-block; width: 16px; height: 16px; margin-right: 7px; vertical-align: -3px; border: 1px solid #d6ff9f; border-radius: 4px; }}
   </style>
 </head>
 <body>
   <main>
-    <h1>{title}</h1>
-    <p class="subtitle">{subtitle}</p>
-    <div class="legend">{legend_items}</div>
-    <div class="wrap">
-      <section class="map-card">
-        <svg viewBox="0 0 {WIDTH} {HEIGHT}">
-          {''.join(parts)}
-        </svg>
-      </section>
-      <aside class="panel">
-        <div class="metrics">{metric_cards}</div>
-        <h2>What this proves</h2>
-        <ul>{result_items}</ul>
-        <details>
-          <summary>Raw simulation output</summary>
-          <pre>{summary_json}</pre>
-        </details>
-      </aside>
-    </div>
+    <section class="slide">
+      <h1>{title}</h1>
+      <p class="subtitle">{subtitle}</p>
+      <div class="legend">{legend_items}</div>
+      <div class="wrap">
+        <section class="map-card">
+          <svg viewBox="0 0 {WIDTH} {HEIGHT}">
+            {''.join(parts)}
+          </svg>
+        </section>
+        <aside class="panel">
+          <div class="metrics">{metric_cards}</div>
+          <h2>What this proves</h2>
+          <ul>{result_items}</ul>
+          <details>
+            <summary>Raw simulation output</summary>
+            <pre>{summary_json}</pre>
+          </details>
+        </aside>
+      </div>
+    </section>
   </main>
 </body>
 </html>
@@ -531,10 +550,10 @@ def main() -> None:
                 "Unaffected fields": 3,
             },
             "legend": {
-                "reached by boundary hops": "background:#2563eb",
-                "same crop but not reached": "background:#f8fafc",
-                "unaffected crop": "background:#fde68a",
-                "report location": "background:#ef4444",
+                "reached by boundary hops": "background:#d6ff9f",
+                "same crop but not reached": "background:#1c3942",
+                "unaffected crop": "background:#172a31; border-color:#c1d4d9",
+                "report location": "background:#7c3cff; border-color:#efe5ff",
             },
             "judge_notes": [
                 "A reaches B, then C, then D, then E through boundary hops.",
@@ -566,11 +585,11 @@ def main() -> None:
                 "Unaffected fields": 2,
             },
             "legend": {
-                "water alert in same district": "background:#0e7490",
-                "same crop outside district": "background:#e5e7eb; border-style:dashed",
-                "unaffected crop": "background:#fde68a",
-                "irrigation district": "background:#cffafe; border-color:#0891b2",
-                "report location": "background:#ef4444",
+                "water alert in same district": "background:#d6ff9f",
+                "same crop outside district": "background:#172a31; border-style:dashed; border-color:#6e8790",
+                "unaffected crop": "background:#172a31; border-color:#c1d4d9",
+                "irrigation district": "background:#1b3942; border-color:#d6ff9f",
+                "report location": "background:#7c3cff; border-color:#efe5ff",
             },
             "judge_notes": [
                 "All almond fields inside the custom irrigation district/radius alert.",
@@ -600,11 +619,11 @@ def main() -> None:
                 "Alerted fields": len(wind_actual),
             },
             "legend": {
-                "wind alert": "background:#3b82f6",
-                "same crop outside cone": "background:#e5e7eb; border-style:dashed",
-                "unaffected crop": "background:#fde68a",
-                "wind cone": "background:#bfdbfe; border-color:#2563eb",
-                "report location": "background:#ef4444",
+                "wind alert": "background:#d6ff9f",
+                "same crop outside cone": "background:#172a31; border-style:dashed; border-color:#6e8790",
+                "unaffected crop": "background:#172a31; border-color:#c1d4d9",
+                "wind cone": "background:#d6ff9f; opacity:0.45",
+                "report location": "background:#7c3cff; border-color:#efe5ff",
             },
             "judge_notes": [
                 "J is directly downwind from the report location and scores highest.",

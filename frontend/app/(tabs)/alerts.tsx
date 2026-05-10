@@ -55,12 +55,14 @@ export default function AlertsScreen() {
   const filteredAlerts = useMemo(
     () =>
       alerts.filter((alert) => {
-        const cropMatch = crops.includes('All Crops') || crops.includes(alert.crop);
+        const cropMatch =
+          crops.includes('All Crops') ||
+          alert.vulnerableCropNames.some((crop) => crops.includes(crop));
         const pestMatch = pestTypes.includes('All Pests') || pestTypes.includes(alert.type);
         const severityMatch = severities.includes('All') || severities.includes(alert.severity);
         const queryMatch =
           query.trim().length === 0 ||
-          `${alert.pest} ${alert.crop}`.toLowerCase().includes(query.trim().toLowerCase());
+          `${alert.pest} ${alert.vulnerableCropLabel}`.toLowerCase().includes(query.trim().toLowerCase());
         return cropMatch && pestMatch && severityMatch && queryMatch;
       }),
     [alerts, crops, pestTypes, query, severities]
@@ -141,7 +143,9 @@ function AlertCard({ alert, onPress, onViewMap }: { alert: AlertItem; onPress: (
     ...new Set(
       alert.affectedFields.length > 0
         ? alert.affectedFields.map((f) => f.crop)
-        : [alert.crop]
+        : alert.vulnerableCropNames.length > 0
+          ? alert.vulnerableCropNames
+          : ['Unknown vulnerable crops']
     ),
   ]
     .slice(0, 2)
@@ -167,7 +171,7 @@ function AlertCard({ alert, onPress, onViewMap }: { alert: AlertItem; onPress: (
         {/* Content */}
         <View style={styles.cardContent}>
           <Text style={styles.cardTitle} numberOfLines={2}>{alert.pest}</Text>
-          <Text style={styles.cropLabel}>{alert.crop}</Text>
+          <Text style={styles.cropLabel}>{alert.vulnerableCropLabel}</Text>
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
               <MaterialIcons name="place" size={12} color="#9ca3af" />
