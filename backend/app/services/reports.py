@@ -17,7 +17,7 @@ from app.models import (
 from app.services.analysis import analyze_report
 from app.services.fields import get_candidate_farmer_fields, get_candidate_fields
 from app.services.irrigation import calculate_irrigation_alerts
-from app.services.push_notifications import notify_affected_field_owners
+from app.services.push_notifications import PushNotificationResult, notify_affected_field_owners
 from app.services.report_db import (
     delete_all_affected_fields,
     delete_affected_fields_for_fields,
@@ -277,6 +277,7 @@ def notify_affected_fields_from_existing_rows(
     )
     reports_with_alerts = 0
     affected_fields_notified = 0
+    push_result = PushNotificationResult()
 
     logger.info(
         "Notifying existing affected fields reporter_user_id=%s report_id=%s field_ids=%s reports=%s",
@@ -293,14 +294,17 @@ def notify_affected_fields_from_existing_rows(
         reports_with_alerts += 1
         affected_fields_notified += len(report.alerts)
         try:
-            notify_affected_field_owners(
-                report_id=report.id,
-                reporter_user_id=report.reporter_user_id,
-                analysis=report.analysis,
-                alerts=report.alerts,
+            push_result.merge(
+                notify_affected_field_owners(
+                    report_id=report.id,
+                    reporter_user_id=report.reporter_user_id,
+                    analysis=report.analysis,
+                    alerts=report.alerts,
+                )
             )
         except Exception as error:
             logger.warning("Unable to send existing affected field push notifications: %s", error)
+            push_result.push_errors.append(str(error))
 
     return NotifyAffectedFieldsResponse(
         reporter_user_id=reporter_user_id,
@@ -309,6 +313,11 @@ def notify_affected_fields_from_existing_rows(
         reports_checked=len(reports),
         reports_with_alerts=reports_with_alerts,
         affected_fields_notified=affected_fields_notified,
+        push_tokens_found=push_result.push_tokens_found,
+        push_messages_attempted=push_result.push_messages_attempted,
+        push_tickets_ok=push_result.push_tickets_ok,
+        push_tickets_error=push_result.push_tickets_error,
+        push_errors=push_result.push_errors,
     )
 
 

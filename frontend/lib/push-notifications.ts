@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { useEffect, useMemo, useRef } from 'react';
 import { Platform } from 'react-native';
 
+import { logAuthEvent } from '@/lib/auth-debug';
 import { createSupabaseWithAccessToken } from '@/lib/supabase';
 
 const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
@@ -44,23 +45,44 @@ export function PushNotificationsBootstrap() {
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !userId) {
+      logAuthEvent('push registration skipped: signed out', {
+        isLoaded,
+        isSignedIn,
+        userId: userId ?? null,
+      });
       registeredUserRef.current = null;
       return;
     }
 
     if (registeredUserRef.current === userId) {
+      logAuthEvent('push registration skipped: already attempted', { userId });
       return;
     }
 
     let cancelled = false;
     registeredUserRef.current = userId;
+    logAuthEvent('push registration starting', {
+      userId,
+      platform: Platform.OS,
+      executionEnvironment: Constants.executionEnvironment,
+      isExpoGo,
+      isDevice: Device.isDevice,
+    });
 
     async function syncPushToken() {
       try {
         const expoPushToken = await registerForPushNotificationsAsync();
         if (!expoPushToken || cancelled) {
+          if (!expoPushToken) {
+            registeredUserRef.current = null;
+            logAuthEvent('push registration stopped: no Expo token returned', { userId });
+          }
           return;
         }
+        logAuthEvent('push token created', {
+          userId,
+          tokenPrefix: expoPushToken.slice(0, 24),
+        });
 
         const email = user?.primaryEmailAddress?.emailAddress ?? null;
         const name = user?.fullName ?? user?.username ?? null;
@@ -75,8 +97,16 @@ export function PushNotificationsBootstrap() {
           .single();
 
         if (profileError) {
+          logAuthEvent('push profile upsert failed', {
+            userId,
+            message: profileError.message,
+          });
           throw profileError;
         }
+        logAuthEvent('push profile upserted', {
+          userId,
+          profileId: profile.id,
+        });
 
         const { error: tokenError } = await authenticatedSupabase
           .from('push_tokens')
@@ -93,8 +123,16 @@ export function PushNotificationsBootstrap() {
           );
 
         if (tokenError) {
+          logAuthEvent('push token upsert failed', {
+            userId,
+            message: tokenError.message,
+          });
           throw tokenError;
         }
+        logAuthEvent('push token upserted', {
+          userId,
+          tokenPrefix: expoPushToken.slice(0, 24),
+        });
       } catch (error) {
         registeredUserRef.current = null;
         console.warn('Unable to register for push notifications', error);
@@ -126,6 +164,11 @@ export function PushNotificationsBootstrap() {
 
 async function registerForPushNotificationsAsync() {
   if (Platform.OS === 'web' || isExpoGo) {
+    logAuthEvent('push token unavailable: unsupported runtime', {
+      platform: Platform.OS,
+      executionEnvironment: Constants.executionEnvironment,
+      isExpoGo,
+    });
     return null;
   }
 
@@ -139,18 +182,30 @@ async function registerForPushNotificationsAsync() {
   }
 
   if (!Device.isDevice) {
+    logAuthEvent('push token unavailable: not a physical device');
     return null;
   }
 
   const existingPermission = await Notifications.getPermissionsAsync();
   let finalStatus = existingPermission.status;
+  logAuthEvent('push permission loaded', {
+    existingStatus: existingPermission.status,
+    canAskAgain: existingPermission.canAskAgain,
+    granted: existingPermission.granted,
+  });
 
   if (finalStatus !== 'granted') {
     const requestedPermission = await Notifications.requestPermissionsAsync();
     finalStatus = requestedPermission.status;
+    logAuthEvent('push permission requested', {
+      requestedStatus: requestedPermission.status,
+      canAskAgain: requestedPermission.canAskAgain,
+      granted: requestedPermission.granted,
+    });
   }
 
   if (finalStatus !== 'granted') {
+    logAuthEvent('push token unavailable: permission not granted', { finalStatus });
     return null;
   }
 
@@ -162,5 +217,10 @@ async function registerForPushNotificationsAsync() {
     throw new Error('Missing EAS projectId for push notifications.');
   }
 
-  return (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+  logAuthEvent('push token requesting from Expo', { projectId });
+  const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+  logAuthEvent('push token received from Expo', {
+    tokenPrefix: token.slice(0, 24),
+  });
+  return token;
 }

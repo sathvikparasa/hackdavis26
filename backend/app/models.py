@@ -142,6 +142,11 @@ class NotifyAffectedFieldsResponse(BaseModel):
     reports_checked: int
     reports_with_alerts: int
     affected_fields_notified: int
+    push_tokens_found: int = 0
+    push_messages_attempted: int = 0
+    push_tickets_ok: int = 0
+    push_tickets_error: int = 0
+    push_errors: list[str] = Field(default_factory=list)
 
 
 class AnalysisInput(BaseModel):
