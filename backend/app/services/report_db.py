@@ -190,10 +190,9 @@ def list_existing_affected_reports(
     join public.reports r on r.id = af.report_id
     join public.fields f on f.id = af.field_id
     join public.farmer_fields ff on ff.field_id = af.field_id
-    join public.profiles p on p.id = ff.profile_id
-    where (%(reporter_user_id)s is null or p.clerk_user_id = %(reporter_user_id)s)
-      and (%(report_id)s is null or r.id = %(report_id)s::uuid)
-      and (%(field_ids)s is null or af.field_id = any(%(field_ids)s::bigint[]))
+    where (%(reporter_user_id)s::text is null or r.reporter_user_id = %(reporter_user_id)s::text)
+      and (%(report_id)s::uuid is null or r.id = %(report_id)s::uuid)
+      and (%(field_ids)s::bigint[] is null or af.field_id = any(%(field_ids)s::bigint[]))
     order by r.created_at desc, af.risk_score desc;
     """
 
