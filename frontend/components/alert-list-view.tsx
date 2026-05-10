@@ -223,14 +223,7 @@ function AlertCard({
         </View>
 
         <View style={styles.cardContent}>
-          <View style={styles.titleRow}>
-            <Text style={styles.cardTitle} numberOfLines={2}>{alert.pest}</Text>
-            {affectsUserFields && (
-              <View style={[styles.riskBadge, { backgroundColor: '#dc2626' }]}>
-                <Text style={styles.riskBadgeText}>Your crops at risk</Text>
-              </View>
-            )}
-          </View>
+          <Text style={styles.cardTitle} numberOfLines={2}>{alert.pest}</Text>
           <Text style={styles.cropLabel}>{alert.vulnerableCropLabel}</Text>
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
@@ -254,6 +247,11 @@ function AlertCard({
           </View>
         </View>
       </View>
+          {affectsUserFields && (
+            <View style={styles.riskBookmark}>
+              <MaterialIcons name="star" size={18} color="#dc2626" />
+            </View>
+          )}
     </Pressable>
   );
 }
@@ -405,6 +403,7 @@ const styles = StyleSheet.create({
   pestImageBox: {
     width: 96,
     height: 120,
+    position: 'relative',
   },
   pestImagePlaceholder: {
     flex: 1,
@@ -490,23 +489,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Outfit_700Bold', fontWeight: '800',
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    justifyContent: 'space-between',
-  },
-  riskBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    flexShrink: 0,
-  },
-  riskBadgeText: {
-    color: '#fff',
-    fontSize: 11,
-    fontFamily: 'Outfit_700Bold',
-    fontWeight: '700',
+  riskBookmark: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
   },
   viewMapBtn: {
     flexDirection: 'row',
