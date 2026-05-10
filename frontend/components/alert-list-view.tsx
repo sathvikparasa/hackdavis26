@@ -10,6 +10,29 @@ const severityConfig: Record<AlertSeverity, { cardBg: string; accent: string }> 
   Low: { cardBg: 'rgba(35,138,59,0.04)', accent: '#238a3b' },
 };
 
+// Color configs for user-affected vs. non-affected alerts
+const affectingUserConfig = { cardBg: 'rgba(220,38,38,0.08)', accent: '#dc2626' }; // Red
+const notAffectingUserConfig = { cardBg: 'rgba(234,179,8,0.08)', accent: '#eab308' }; // Yellow
+
+function isAlertAffectingUserFields(alert: AlertItem): boolean {
+  return alert.affectedFields.length > 0;
+}
+
+function sortAlertsByUserFields(alerts: AlertItem[]): AlertItem[] {
+  return [...alerts].sort((a, b) => {
+    const aAffectsUser = isAlertAffectingUserFields(a);
+    const bAffectsUser = isAlertAffectingUserFields(b);
+    
+    // Affecting user's fields first (true > false)
+    if (aAffectsUser !== bAffectsUser) {
+      return aAffectsUser ? -1 : 1;
+    }
+    
+    // Within same category, maintain original order
+    return 0;
+  });
+}
+
 type AlertListViewProps = {
   alerts: AlertItem[];
   allAlertsCount: number;
@@ -79,7 +102,7 @@ export function AlertListView({
           ) : alerts.length === 0 && !loading ? (
             <StateMessage title="No alerts found" detail="New public reports will appear here." />
           ) : (
-            alerts.map((alert) => (
+            sortAlertsByUserFields(alerts).map((alert) => (
               <AlertCard
                 key={alert.id}
                 alert={alert}
@@ -169,7 +192,8 @@ function AlertCard({
   onPress: () => void;
   onViewMap: () => void;
 }) {
-  const cfg = severityConfig[alert.severity];
+  const affectsUserFields = isAlertAffectingUserFields(alert);
+  const cfg = affectsUserFields ? affectingUserConfig : notAffectingUserConfig;
 
   const affectingCrops = [
     ...new Set(
@@ -199,7 +223,14 @@ function AlertCard({
         </View>
 
         <View style={styles.cardContent}>
-          <Text style={styles.cardTitle} numberOfLines={2}>{alert.pest}</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.cardTitle} numberOfLines={2}>{alert.pest}</Text>
+            {affectsUserFields && (
+              <View style={[styles.riskBadge, { backgroundColor: '#dc2626' }]}>
+                <Text style={styles.riskBadgeText}>Your crops at risk</Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.cropLabel}>{alert.vulnerableCropLabel}</Text>
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
@@ -458,6 +489,24 @@ const styles = StyleSheet.create({
     color: '#111827',
     fontSize: 16,
     fontFamily: 'Outfit_700Bold', fontWeight: '800',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    justifyContent: 'space-between',
+  },
+  riskBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    flexShrink: 0,
+  },
+  riskBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontFamily: 'Outfit_700Bold',
+    fontWeight: '700',
   },
   viewMapBtn: {
     flexDirection: 'row',
