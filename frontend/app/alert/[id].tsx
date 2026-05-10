@@ -1,4 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -77,10 +78,20 @@ export default function AlertDetailScreen() {
           <StateMessage title="Unable to load alert" detail={error ?? undefined} />
         ) : (
           <>
+            {alert.imageUrl ? (
+              <Image
+                source={{ uri: alert.imageUrl }}
+                style={styles.heroBanner}
+                contentFit="cover"
+              />
+            ) : null}
+
             <View style={styles.hero}>
-              <View style={[styles.heroIcon, { backgroundColor: colors.tint }]}>
-                <MaterialIcons name="pest-control" size={28} color={colors.pin} />
-              </View>
+              {!alert.imageUrl ? (
+                <View style={[styles.heroIcon, { backgroundColor: colors.tint }]}>
+                  <MaterialIcons name="pest-control" size={28} color={colors.pin} />
+                </View>
+              ) : null}
               <View style={styles.heroCopy}>
                 <Text style={styles.title}>{alert.pest}</Text>
                 <View style={styles.heroMetaRow}>
@@ -292,6 +303,12 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     width: 40,
+  },
+  heroBanner: {
+    width: '100%',
+    height: 220,
+    borderRadius: 16,
+    marginBottom: 16,
   },
   hero: {
     alignItems: 'flex-start',
