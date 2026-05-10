@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Image,
   PanResponder,
   Pressable,
   ScrollView,
@@ -435,9 +436,17 @@ export default function PestMapScreen() {
           </View>
 
           <View style={styles.detailTop}>
-            <View style={[styles.detailIcon, { backgroundColor: colors.tint }]}>
-              <MaterialIcons name="pest-control" size={20} color={colors.pin} />
-            </View>
+            {selectedAlert.imageUrl ? (
+              <Image
+                source={{ uri: selectedAlert.imageUrl }}
+                style={[styles.detailIcon, styles.detailIconImage]}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={[styles.detailIcon, { backgroundColor: colors.tint }]}>
+                <MaterialIcons name="pest-control" size={20} color={colors.pin} />
+              </View>
+            )}
             <View style={styles.detailCopy}>
               <Text style={styles.detailTitle} numberOfLines={1}>
                 {selectedAlert.pest}
@@ -853,10 +862,20 @@ const styles = StyleSheet.create({
   },
   detailIcon: {
     alignItems: 'center',
-    borderRadius: 18,
-    height: 36,
+    borderRadius: 28,
+    height: 56,
     justifyContent: 'center',
-    width: 36,
+    overflow: 'hidden',
+    width: 56,
+  },
+  detailIconImage: {
+    borderRadius: 28,
+  },
+  alertImage: {
+    borderRadius: 12,
+    height: 160,
+    marginTop: 16,
+    width: '100%',
   },
   detailCopy: {
     flex: 1,
@@ -882,11 +901,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
+  alertImage: {
+    borderRadius: 12,
+    height: 160,
+    marginTop: 16,
+    width: '100%',
+  },
   metaRow: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: 10,
-    marginTop: 22,
+    marginTop: 16,
   },
   metaText: {
     color: '#4b5563',

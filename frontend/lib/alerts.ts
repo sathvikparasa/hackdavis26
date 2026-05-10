@@ -20,6 +20,7 @@ export type AlertItem = {
   vulnerableCrops: VulnerableCrop[];
   affectedFields: AffectedField[];
   recommendations: string[];
+  imageUrl: string | null;
 };
 
 type ReportRow = {
@@ -33,6 +34,8 @@ type ReportRow = {
   spread_methods: string[] | null;
   vulnerable_crop: VulnerableCropRow[] | null;
   created_at: string | null;
+  image_bucket: string | null;
+  image_path: string | null;
 };
 
 type AffectedFieldRow = {
@@ -80,11 +83,11 @@ export type AffectedField = {
 };
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const SUPABASE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 export async function fetchAlerts(): Promise<AlertItem[]> {
   const reports = await supabaseGet<ReportRow[]>(
-    '/rest/v1/reports?select=id,pest_name,crop_type,latitude,longitude,confidence,travel_distance,spread_methods,vulnerable_crop,created_at&order=created_at.desc&limit=100'
+    '/rest/v1/reports?select=id,pest_name,crop_type,latitude,longitude,confidence,travel_distance,spread_methods,vulnerable_crop,created_at,image_bucket,image_path&order=created_at.desc&limit=100'
   );
 
   if (reports.length === 0) {
@@ -166,6 +169,10 @@ export async function fetchAlerts(): Promise<AlertItem[]> {
         vulnerableCrops,
         affectedFields: affectedByReport.get(report.id) ?? [],
         recommendations,
+        imageUrl:
+          report.image_bucket && report.image_path
+            ? `${SUPABASE_URL}/storage/v1/object/public/${report.image_bucket}/${report.image_path}`
+            : null,
       };
     });
 }
@@ -204,7 +211,7 @@ function clamp(value: number, min: number, max: number): number {
 
 async function supabaseGet<T>(path: string): Promise<T> {
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-    throw new Error('Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY');
+    throw new Error('Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY');
   }
 
   const response = await fetch(`${SUPABASE_URL}${path}`, {

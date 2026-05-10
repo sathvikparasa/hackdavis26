@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AlertItem, AlertSeverity, projectAlerts } from '@/lib/alerts';
 
@@ -71,12 +71,18 @@ export function AlertsMap({
                 {
                   left: `${point.x}%`,
                   top: `${point.y}%`,
-                  backgroundColor: severityColors[alert.severity],
+                  borderColor: severityColors[alert.severity],
                   transform: [{ scale: alert.id === selectedId ? 1.13 : 1 }],
                 },
               ]}
             >
-              <MaterialIcons name="place" size={24} color="#fff" />
+              {alert.imageUrl ? (
+                <Image source={{ uri: alert.imageUrl }} style={styles.pinImage} resizeMode="cover" />
+              ) : (
+                <View style={[styles.pinFallback, { backgroundColor: severityColors[alert.severity] }]}>
+                  <MaterialIcons name="place" size={22} color="#fff" />
+                </View>
+              )}
             </View>
           </View>
         );
@@ -144,19 +150,31 @@ const styles = StyleSheet.create({
   mapLabelThree: { left: '16%', top: '76%' },
   pin: {
     alignItems: 'center',
-    borderColor: 'rgba(255,255,255,0.85)',
-    borderRadius: 20,
+    borderRadius: 26,
     borderWidth: 3,
-    height: 40,
+    height: 52,
     justifyContent: 'center',
-    marginLeft: -20,
-    marginTop: -20,
+    marginLeft: -26,
+    marginTop: -26,
+    overflow: 'hidden',
     position: 'absolute',
     shadowColor: '#111827',
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
-    width: 40,
+    width: 52,
+  },
+  pinImage: {
+    borderRadius: 23,
+    height: 46,
+    width: 46,
+  },
+  pinFallback: {
+    alignItems: 'center',
+    borderRadius: 23,
+    height: 46,
+    justifyContent: 'center',
+    width: 46,
   },
   radiusCircle: {
     backgroundColor: 'rgba(255,255,255,0.18)',

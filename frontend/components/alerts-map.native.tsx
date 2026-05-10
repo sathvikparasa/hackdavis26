@@ -1,6 +1,7 @@
-import { memo, useEffect, useRef } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import MapView, { Circle, Marker, PROVIDER_DEFAULT } from 'react-native-maps';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import { AlertItem, AlertSeverity } from '@/lib/alerts';
 
@@ -22,6 +23,38 @@ const radiusFillColors: Record<AlertSeverity, string> = {
   Moderate: 'rgba(242,165,26,0.15)',
   Low: 'rgba(35,138,59,0.13)',
 };
+
+function PinMarker({ alert, onSelect }: { alert: AlertItem; onSelect: (id: string) => void }) {
+  const [tracked, setTracked] = useState(!!alert.imageUrl);
+  const stopTracking = () => setTracked(false);
+
+  return (
+    <Marker
+      coordinate={{ latitude: alert.latitude, longitude: alert.longitude }}
+      onPress={(event) => {
+        event.stopPropagation?.();
+        onSelect(alert.id);
+      }}
+      tracksViewChanges={tracked}
+    >
+      <View style={[styles.pin, { borderColor: severityColors[alert.severity] }]}>
+        {alert.imageUrl ? (
+          <Image
+            source={{ uri: alert.imageUrl }}
+            style={styles.pinImage}
+            resizeMode="cover"
+            onLoad={stopTracking}
+            onError={stopTracking}
+          />
+        ) : (
+          <View style={[styles.pinFallback, { backgroundColor: severityColors[alert.severity] }]}>
+            <MaterialIcons name="pest-control" size={18} color="#fff" />
+          </View>
+        )}
+      </View>
+    </Marker>
+  );
+}
 
 function AlertsMapComponent({
   alerts,
@@ -82,22 +115,9 @@ function AlertsMapComponent({
           />
         );
       })}
-      {alerts.map((alert) => {
-        return (
-          <Marker
-            key={alert.id}
-            coordinate={{
-              latitude: alert.latitude,
-              longitude: alert.longitude,
-            }}
-            onPress={(event) => {
-              event.stopPropagation?.();
-              onSelect(alert.id);
-            }}
-            pinColor={severityColors[alert.severity]}
-          />
-        );
-      })}
+      {alerts.map((alert) => (
+        <PinMarker key={alert.id} alert={alert} onSelect={onSelect} />
+      ))}
     </MapView>
   );
 }
@@ -120,6 +140,26 @@ export function EmptyMapMessage({ title, detail }: { title: string; detail?: str
 }
 
 const styles = StyleSheet.create({
+  pin: {
+    alignItems: 'center',
+    borderRadius: 28,
+    borderWidth: 3,
+    height: 52,
+    justifyContent: 'center',
+    width: 52,
+  },
+  pinImage: {
+    borderRadius: 23,
+    height: 46,
+    width: 46,
+  },
+  pinFallback: {
+    alignItems: 'center',
+    borderRadius: 23,
+    height: 46,
+    justifyContent: 'center',
+    width: 46,
+  },
   message: {
     alignItems: 'center',
     alignSelf: 'center',
