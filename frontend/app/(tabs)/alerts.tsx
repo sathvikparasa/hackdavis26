@@ -125,27 +125,6 @@ export default function AlertsScreen() {
   );
 }
 
-function usePestImage(pestName: string): string | null {
-  const [uri, setUri] = useState<string | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    fetch(
-      `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(pestName)}&prop=pageimages&format=json&pithumbsize=300&origin=*`
-    )
-      .then((r) => r.json())
-      .then((data) => {
-        if (cancelled) return;
-        const pages = data?.query?.pages ?? {};
-        const page = Object.values(pages)[0] as { thumbnail?: { source?: string } };
-        const url = page?.thumbnail?.source;
-        if (url) setUri(url);
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [pestName]);
-  return uri;
-}
-
 function pestTypeIcon(type: AlertItem['type']): keyof typeof MaterialIcons.glyphMap {
   if (type === 'Fungi') return 'scatter-plot';
   if (type === 'Weeds') return 'yard';
@@ -155,7 +134,6 @@ function pestTypeIcon(type: AlertItem['type']): keyof typeof MaterialIcons.glyph
 
 function AlertCard({ alert, onPress, onViewMap }: { alert: AlertItem; onPress: () => void; onViewMap: () => void }) {
   const cfg = severityConfig[alert.severity];
-  const imageUri = usePestImage(alert.pest);
 
   const affectingCrops = [
     ...new Set(
@@ -170,10 +148,10 @@ function AlertCard({ alert, onPress, onViewMap }: { alert: AlertItem; onPress: (
   return (
     <Pressable style={[styles.card, { backgroundColor: cfg.cardBg }]} onPress={onPress}>
       <View style={styles.cardInner}>
-        {/* Left: pest image */}
+        {/* Left: report image */}
         <View style={[styles.pestImageBox, { borderRightColor: cfg.accent, borderRightWidth: 2 }]}>
-          {imageUri ? (
-            <Image source={{ uri: imageUri }} style={styles.pestImage} contentFit="cover" />
+          {alert.imageUrl ? (
+            <Image source={{ uri: alert.imageUrl }} style={styles.pestImage} contentFit="cover" />
           ) : (
             <View style={[styles.pestImagePlaceholder, { backgroundColor: cfg.cardBg }]}>
               <MaterialIcons name={pestTypeIcon(alert.type)} size={30} color={cfg.accent} />
@@ -342,14 +320,15 @@ const styles = StyleSheet.create({
   },
   cardInner: {
     flexDirection: 'row',
-    minHeight: 120,
+    height: 120,
   },
   pestImageBox: {
     width: 96,
+    height: 120,
   },
   pestImage: {
-    width: '100%',
-    height: '100%',
+    width: 96,
+    height: 120,
   },
   pestImagePlaceholder: {
     flex: 1,
