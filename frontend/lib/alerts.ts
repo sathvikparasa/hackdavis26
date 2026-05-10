@@ -83,7 +83,9 @@ export type AffectedField = {
 };
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const SUPABASE_PUBLISHABLE_KEY =
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
+  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
 export async function fetchAlerts(): Promise<AlertItem[]> {
   const reports = await supabaseGet<ReportRow[]>(
@@ -211,7 +213,9 @@ function clamp(value: number, min: number, max: number): number {
 
 async function supabaseGet<T>(path: string): Promise<T> {
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-    throw new Error('Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY');
+    throw new Error(
+      'Missing EXPO_PUBLIC_SUPABASE_URL and either EXPO_PUBLIC_SUPABASE_ANON_KEY or EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY'
+    );
   }
 
   const response = await fetch(`${SUPABASE_URL}${path}`, {

@@ -144,7 +144,7 @@ export default function SignInScreen() {
             </Pressable>
 
             <Pressable onPress={() => signUp.verifications.sendEmailCode()}>
-              <Text style={styles.link}>Resend code</Text>
+              <Text style={styles.linkAction}>Resend code</Text>
             </Pressable>
           </View>
         </ScrollView>

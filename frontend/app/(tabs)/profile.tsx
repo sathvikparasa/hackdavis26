@@ -142,7 +142,7 @@ function AuthForm() {
         </Pressable>
 
         <Pressable onPress={() => signUp.verifications.sendEmailCode()}>
-          <Text style={styles.link}>Resend code</Text>
+          <Text style={styles.linkAction}>Resend code</Text>
         </Pressable>
       </View>
     )
@@ -227,7 +227,7 @@ export default function ProfilePage() {
     if (!user) return
     const email = user.emailAddresses[0]?.emailAddress ?? ''
     const clerkName = user.fullName ?? undefined
-    upsertProfile(user.id, email, clerkName).catch(console.error)
+    void Promise.resolve(upsertProfile(user.id, email, clerkName)).catch(console.error)
     // Fetch stored name from profiles table (set during sign-up)
     supabase
       .from('profiles')
@@ -235,23 +235,28 @@ export default function ProfilePage() {
       .eq('clerk_user_id', user.id)
       .single()
       .then(({ data }) => { if (data?.name) setProfileName(data.name) })
-      .catch(console.error)
+      .then(undefined, console.error)
   }, [user?.id])
 
   React.useEffect(() => {
     if (!user) return
+    const userId = user.id
     setReportsLoading(true)
-    supabase
-      .from('reports')
-      .select('id, pest_name, crop_type, created_at, confidence')
-      .eq('clerk_user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(20)
-      .then(({ data }) => {
+    async function loadReports() {
+      try {
+        const { data } = await supabase
+          .from('reports')
+          .select('id, pest_name, crop_type, created_at, confidence')
+          .eq('clerk_user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(20)
         setReports(data ?? [])
+      } finally {
         setReportsLoading(false)
-      })
-      .catch(() => setReportsLoading(false))
+      }
+    }
+
+    void loadReports()
   }, [user?.id])
 
   if (!isLoaded) return <View style={{ flex: 1, backgroundColor: '#fafafa' }} />
