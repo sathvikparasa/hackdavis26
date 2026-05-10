@@ -1,4 +1,4 @@
-import { ClerkProvider } from '@clerk/expo'
+import { ClerkProvider, useAuth } from '@clerk/expo'
 import { tokenCache } from '@clerk/expo/token-cache'
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native'
 import {
@@ -21,6 +21,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme'
 import { OfflineReportWorker } from '@/lib/offline-report-worker'
 import { PushNotificationsBootstrap } from '@/lib/push-notifications'
 import { TutorialProvider } from '@/lib/tutorial'
+import { logAuthEvent } from '@/lib/auth-debug'
 
 SplashScreen.preventAutoHideAsync()
 
@@ -32,6 +33,20 @@ if (!publishableKey) {
 
 export const unstable_settings = {
   anchor: '(tabs)',
+}
+
+function AuthStateLogger() {
+  const { isLoaded, isSignedIn, userId } = useAuth()
+
+  useEffect(() => {
+    logAuthEvent('state changed', {
+      isLoaded,
+      isSignedIn,
+      userId: userId ?? null,
+    })
+  }, [isLoaded, isSignedIn, userId])
+
+  return null
 }
 
 function AppSplash({ visible }: { visible: boolean }) {
@@ -77,6 +92,7 @@ export default function RootLayout() {
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           {fontsLoaded ? (
             <>
+              <AuthStateLogger />
               <PushNotificationsBootstrap />
               <OfflineReportWorker />
               <TutorialProvider>

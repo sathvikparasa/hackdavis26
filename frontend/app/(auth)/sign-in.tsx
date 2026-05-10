@@ -15,6 +15,13 @@ import {
 } from 'react-native'
 
 import { upsertProfile } from '@/lib/supabase'
+import {
+  clerkErrorMessage,
+  describeClerkAttempt,
+  logAuthEvent,
+  selectSecondFactor,
+  type ClerkSecondFactor,
+} from '@/lib/auth-debug'
 import LoginSvg from '@/assets/illustrations/login.svg'
 import SignUpSvg from '@/assets/illustrations/sign-up.svg'
 import MfaSvg from '@/assets/illustrations/mfa.svg'
@@ -49,6 +56,8 @@ export default function SignInScreen() {
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [error, setError] = React.useState('')
+  const [pendingSecondFactor, setPendingSecondFactor] = React.useState(false)
+  const [selectedSecondFactor, setSelectedSecondFactor] = React.useState<ClerkSecondFactor | null>(null)
   const [pendingVerification, setPendingVerification] = React.useState(false)
   const [digits, setDigits] = React.useState<string[]>(Array(DIGIT_COUNT).fill(''))
   const inputRefs = React.useRef<(TextInput | null)[]>(Array(DIGIT_COUNT).fill(null))
@@ -56,42 +65,191 @@ export default function SignInScreen() {
   const isBusy = signInStatus === 'fetching' || signUpStatus === 'fetching'
   const code = digits.join('')
 
+  const prepareSecondFactor = async () => {
+    const factor = selectSecondFactor(signIn.supportedSecondFactors)
+    logAuthEvent('sign-in second factor selected', {
+      factor,
+      ...describeClerkAttempt(signIn),
+    })
+
+    if (!factor?.strategy) {
+      const message = 'This account requires a second factor, but no supported factor was returned.'
+      setError(message)
+      logAuthEvent('sign-in second factor missing', describeClerkAttempt(signIn))
+      return
+    }
+
+    setSelectedSecondFactor(factor)
+    setDigits(Array(DIGIT_COUNT).fill(''))
+
+    if (factor.strategy === 'email_code') {
+      const { error: sendError } = await signIn.mfa.sendEmailCode()
+      logAuthEvent('sign-in second factor email code sent', {
+        hasError: Boolean(sendError),
+        ...describeClerkAttempt(signIn),
+      })
+      if (sendError) {
+        setError(sendError.message ?? 'Unable to send verification code')
+        return
+      }
+    } else if (factor.strategy === 'phone_code') {
+      const { error: sendError } = await signIn.mfa.sendPhoneCode()
+      logAuthEvent('sign-in second factor phone code sent', {
+        hasError: Boolean(sendError),
+        ...describeClerkAttempt(signIn),
+      })
+      if (sendError) {
+        setError(sendError.message ?? 'Unable to send verification code')
+        return
+      }
+    }
+
+    setPendingSecondFactor(true)
+  }
+
   const handleSignIn = async () => {
     setError('')
+    logAuthEvent('sign-in pressed', { email: email.trim().toLowerCase() })
     try {
-      const { error: err } = await signIn.password({ emailAddress: email, password })
-      if (err) { setError(err.message ?? 'Sign in failed'); return }
-      if (signIn.status === 'complete') {
+      const { error: signInError } = await signIn.password({ emailAddress: email, password })
+      logAuthEvent('sign-in password returned', {
+        hasError: Boolean(signInError),
+        ...describeClerkAttempt(signIn),
+      })
+      if (signInError) {
+        setError(signInError.message ?? 'Sign in failed')
+        logAuthEvent('sign-in attempt error', {
+          message: signInError.message ?? 'Sign in failed',
+        })
+        return
+      }
+      if (signIn.status === 'complete' && signIn.createdSessionId) {
+        logAuthEvent('sign-in setActive starting', describeClerkAttempt(signIn))
         await setActive({ session: signIn.createdSessionId })
+        logAuthEvent('sign-in setActive complete')
         router.replace('/(tabs)' as Href)
+        logAuthEvent('sign-in routed to tabs')
+      } else if (signIn.status === 'needs_second_factor') {
+        await prepareSecondFactor()
+      } else {
+        const message = `Sign in did not complete. Clerk status: ${signIn.status ?? 'unknown'}`
+        setError(message)
+        logAuthEvent('sign-in incomplete', describeClerkAttempt(signIn))
       }
     } catch (e: any) {
-      setError(e?.message ?? 'Sign in failed')
+      const message = clerkErrorMessage(e, 'Sign in failed')
+      setError(message)
+      console.error('[auth] sign-in exception', e)
+    }
+  }
+
+  const handleSecondFactor = async () => {
+    setError('')
+    logAuthEvent('sign-in second factor pressed', {
+      codeLength: code.length,
+      factor: selectedSecondFactor,
+    })
+
+    try {
+      const factor = selectedSecondFactor ?? selectSecondFactor(signIn.supportedSecondFactors)
+      if (!factor?.strategy) {
+        setError('No supported second factor is available for this account.')
+        logAuthEvent('sign-in second factor unavailable', describeClerkAttempt(signIn))
+        return
+      }
+
+      const result =
+        factor.strategy === 'email_code'
+          ? await signIn.mfa.verifyEmailCode({ code })
+          : factor.strategy === 'phone_code'
+            ? await signIn.mfa.verifyPhoneCode({ code })
+            : factor.strategy === 'totp'
+              ? await signIn.mfa.verifyTOTP({ code })
+              : await signIn.mfa.verifyBackupCode({ code })
+
+      logAuthEvent('sign-in second factor returned', {
+        hasError: Boolean(result.error),
+        ...describeClerkAttempt(signIn),
+      })
+      if (result.error) {
+        setError(result.error.message ?? 'Second factor verification failed')
+        return
+      }
+
+      if (signIn.status === 'complete' && signIn.createdSessionId) {
+        logAuthEvent('sign-in second factor finalize starting', describeClerkAttempt(signIn))
+        const { error: finalizeError } = await signIn.finalize()
+        if (finalizeError) {
+          setError(finalizeError.message ?? 'Unable to activate session')
+          logAuthEvent('sign-in second factor finalize error', {
+            message: finalizeError.message ?? 'Unable to activate session',
+          })
+          return
+        }
+        logAuthEvent('sign-in second factor setActive complete')
+        router.replace('/(tabs)' as Href)
+        logAuthEvent('sign-in second factor routed to tabs')
+      } else {
+        const message = `Second factor did not complete. Clerk status: ${signIn.status ?? 'unknown'}`
+        setError(message)
+        logAuthEvent('sign-in second factor incomplete', describeClerkAttempt(signIn))
+      }
+    } catch (e: any) {
+      const message = clerkErrorMessage(e, 'Second factor verification failed')
+      setError(message)
+      console.error('[auth] sign-in second factor exception', e)
     }
   }
 
   const handleSignUp = async () => {
     setError('')
-    const { error: err } = await signUp.password({ emailAddress: email, password })
-    if (err) { setError(err.message ?? 'Sign up failed'); return }
-    await signUp.verifications.sendEmailCode()
-    setPendingVerification(true)
+    logAuthEvent('sign-up pressed', { email: email.trim().toLowerCase() })
+    try {
+      const { error: signUpError } = await signUp.password({ emailAddress: email, password })
+      logAuthEvent('sign-up password returned', {
+        hasError: Boolean(signUpError),
+        ...describeClerkAttempt(signUp),
+      })
+      if (signUpError) {
+        setError(signUpError.message ?? 'Sign up failed')
+        logAuthEvent('sign-up attempt error', {
+          message: signUpError.message ?? 'Sign up failed',
+        })
+        return
+      }
+      await signUp.verifications.sendEmailCode()
+      logAuthEvent('sign-up verification code sent')
+      setPendingVerification(true)
+    } catch (e: any) {
+      const message = clerkErrorMessage(e, 'Sign up failed')
+      setError(message)
+      console.error('[auth] sign-up exception', e)
+    }
   }
 
   const handleVerify = async () => {
     setError('')
+    logAuthEvent('sign-up verify pressed', { codeLength: code.length })
     try {
       await signUp.verifications.verifyEmailCode({ code })
-      if (signUp.status === 'complete') {
+      logAuthEvent('sign-up verify returned', describeClerkAttempt(signUp))
+      if (signUp.status === 'complete' && signUp.createdSessionId) {
         const clerkId = signUp.createdUserId ?? ''
         if (clerkId) await upsertProfile(clerkId, email, name || undefined).catch(console.error)
+        logAuthEvent('sign-up setActive starting', describeClerkAttempt(signUp))
         await setActive({ session: signUp.createdSessionId })
+        logAuthEvent('sign-up setActive complete')
         router.replace('/(tabs)' as Href)
+        logAuthEvent('sign-up routed to tabs')
       } else {
-        setError('Verification failed. Check your code and try again.')
+        const message = `Verification did not complete. Clerk status: ${signUp.status ?? 'unknown'}`
+        setError(message)
+        logAuthEvent('sign-up verification incomplete', describeClerkAttempt(signUp))
       }
     } catch (e: any) {
-      setError(e?.message ?? 'Verification failed')
+      const message = clerkErrorMessage(e, 'Verification failed')
+      setError(message)
+      console.error('[auth] sign-up verify exception', e)
     }
   }
 
@@ -104,6 +262,53 @@ export default function SignInScreen() {
 
   const handleDigitKeyPress = (key: string, index: number) => {
     if (key === 'Backspace' && !digits[index] && index > 0) inputRefs.current[index - 1]?.focus()
+  }
+
+  if (pendingSecondFactor) {
+    return (
+      <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          <AnticipateLogoSvg width={180} height={75} style={styles.logo} />
+
+          <Animated.View style={[styles.illustrationContainer, { transform: [{ translateY: floatY }] }]} pointerEvents="none">
+            <MfaSvg width={165} height={118} />
+          </Animated.View>
+
+          <View style={styles.mfaContent}>
+            <Text style={styles.heading}>Enter your code</Text>
+            <Text style={styles.subheading}>Complete the second verification step for your account.</Text>
+
+            <View style={styles.digitRow}>
+              {digits.map((digit, i) => (
+                <React.Fragment key={i}>
+                  {i === 3 && <View style={styles.digitGap} />}
+                  <TextInput
+                    ref={(r) => { inputRefs.current[i] = r }}
+                    style={styles.digitInput}
+                    keyboardType="number-pad"
+                    maxLength={1}
+                    value={digit}
+                    onChangeText={(v) => handleDigitChange(v, i)}
+                    onKeyPress={({ nativeEvent }) => handleDigitKeyPress(nativeEvent.key, i)}
+                    textAlign="center"
+                  />
+                </React.Fragment>
+              ))}
+            </View>
+
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+
+            <Pressable
+              style={({ pressed }) => [styles.button, (isBusy || code.length < 6) && styles.buttonDisabled, pressed && { opacity: 0.85 }]}
+              onPress={handleSecondFactor}
+              disabled={isBusy || code.length < 6}
+            >
+              <Text style={styles.buttonText}>{isBusy ? 'Verifying…' : 'Verify'}</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </View>
+    )
   }
 
   if (pendingVerification) {
