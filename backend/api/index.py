@@ -1,3 +1,4 @@
+import asyncio
 from typing import Optional
 
 from fastapi import FastAPI, File, Form, UploadFile
@@ -5,6 +6,7 @@ from fastapi import FastAPI, File, Form, UploadFile
 from app.models import (
     AnalysisRequest,
     AnalysisResponse,
+    RecomputeAllAffectedFieldsResponse,
     RecomputeFarmerFieldsRequest,
     RecomputeFarmerFieldsResponse,
     ReportResponse,
@@ -19,6 +21,7 @@ from app.services.weather_analysis import (
 )
 from app.services.reports import submit_report as submit_report_service
 from app.services.reports import recompute_farmer_field_alerts as recompute_farmer_field_alerts_service
+from app.services.reports import repopulate_all_affected_fields as repopulate_all_affected_fields_service
 from app.services.spread import calculate_spread as calculate_spread_service
 
 
@@ -60,6 +63,16 @@ def recompute_farmer_field_alerts(
         field_ids=request.field_ids,
         send_notifications=request.send_notifications,
     )
+
+
+@app.post("/alerts/repopulate-affected-fields", response_model=RecomputeAllAffectedFieldsResponse)
+async def repopulate_affected_fields() -> RecomputeAllAffectedFieldsResponse:
+    return await asyncio.to_thread(repopulate_all_affected_fields_service)
+
+
+@app.get("/cron/repopulate-affected-fields", response_model=RecomputeAllAffectedFieldsResponse)
+async def cron_repopulate_affected_fields() -> RecomputeAllAffectedFieldsResponse:
+    return await asyncio.to_thread(repopulate_all_affected_fields_service)
 
 
 @app.post("/analysis", response_model=AnalysisResponse)

@@ -1,23 +1,49 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useAuth } from '@clerk/expo';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { Geometry } from 'geojson';
 
 import { AlertListView } from '@/components/alert-list-view';
 import { AlertMapView } from '@/components/alert-map-view';
 import { AlertItem, fetchAlerts } from '@/lib/alerts';
 import { getFilterState, subscribeFilterState } from '@/lib/filter-store';
+import { createSupabaseWithAccessToken } from '@/lib/supabase';
 import { useTutorial } from '@/lib/tutorial';
 
 type ViewMode = 'list' | 'map';
 
+type AlertMapField = {
+  crop: string | null;
+  geometry: Geometry;
+  id: number;
+};
+
+type FarmerFieldRow = {
+  crop_type: string | null;
+  field_id: number;
+  fields:
+    | {
+        geometry_simplified: unknown;
+        id: number;
+      }
+    | {
+        geometry_simplified: unknown;
+        id: number;
+      }[]
+    | null;
+};
+
 export default function AlertsScreen() {
+  const { getToken, isSignedIn } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { step, advance } = useTutorial();
 
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [alertMapFields, setAlertMapFields] = useState<AlertMapField[]>([]);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +52,18 @@ export default function AlertsScreen() {
   const [selectedMapAlertId, setSelectedMapAlertId] = useState<string | null>(null);
 
   useEffect(() => subscribeFilterState(setFilters), []);
+
+  const authenticatedSupabase = useMemo(
+    () => createSupabaseWithAccessToken(async () => {
+      try {
+        return await getToken();
+      } catch (tokenError) {
+        console.warn('Unable to load Clerk session token', tokenError);
+        return null;
+      }
+    }),
+    [getToken]
+  );
 
   const { crops, pests: pestTypes, severities } = filters;
   const hasActiveFilters =
@@ -44,6 +82,44 @@ export default function AlertsScreen() {
   }
 
   useEffect(() => { loadAlerts(); }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAlertMapFields() {
+      if (!isSignedIn) {
+        setAlertMapFields([]);
+        return;
+      }
+
+      const { data, error: fieldsError } = await authenticatedSupabase
+        .from('farmer_fields')
+        .select('field_id,crop_type,fields(id,geometry_simplified)')
+        .order('field_id', { ascending: true });
+
+      if (cancelled) {
+        return;
+      }
+
+      if (fieldsError) {
+        console.warn('Unable to load alert map fields', fieldsError);
+        setAlertMapFields([]);
+        return;
+      }
+
+      const nextFields = ((data ?? []) as FarmerFieldRow[])
+        .map(toAlertMapField)
+        .filter((field): field is AlertMapField => !!field);
+
+      setAlertMapFields(nextFields);
+    }
+
+    void loadAlertMapFields();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authenticatedSupabase, isSignedIn]);
 
   const filteredAlerts = useMemo(
     () =>
@@ -77,31 +153,35 @@ export default function AlertsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <View style={styles.safe}>
       {viewMode === 'list' ? (
-        <AlertListView
-          alerts={filteredAlerts}
-          crops={crops}
-          error={error}
-          hasActiveFilters={hasActiveFilters}
-          loading={loading}
-          onOpenAlert={openAlert}
-          onOpenFilter={openFilter}
-          onOpenMap={openMapAlert}
-          onRetry={loadAlerts}
-          pestTypes={pestTypes}
-          query={query}
-          setQuery={setQuery}
-          severities={severities}
-        />
+        <SafeAreaView style={styles.safe} edges={['top']}>
+          <AlertListView
+            alerts={filteredAlerts}
+            crops={crops}
+            error={error}
+            hasActiveFilters={hasActiveFilters}
+            loading={loading}
+            onOpenAlert={openAlert}
+            onOpenFilter={openFilter}
+            onOpenMap={openMapAlert}
+            onRetry={loadAlerts}
+            pestTypes={pestTypes}
+            query={query}
+            setQuery={setQuery}
+            severities={severities}
+          />
+        </SafeAreaView>
       ) : (
         <AlertMapView
           alerts={filteredAlerts}
           allAlertsCount={alerts.length}
+          alertMapFields={alertMapFields}
           crops={crops}
+          centerButtonTop={insets.top + 76}
           error={error}
           hasActiveFilters={hasActiveFilters}
-          headerTop={insets.top + 8}
+          headerTop={insets.top + 12}
           loading={loading}
           onClearSelection={() => setSelectedMapAlertId(null)}
           onOpenAlert={openAlert}
@@ -116,7 +196,7 @@ export default function AlertsScreen() {
         />
       )}
 
-      <View style={[styles.fixedViewToggle, { top: insets.top + 18 }]}>
+      <View style={[styles.fixedViewToggle, { top: insets.top + 12 }]}>
         <Pressable
           style={[styles.toggleButton, viewMode === 'list' && styles.toggleButtonActive]}
           onPress={() => setViewMode('list')}
@@ -130,8 +210,53 @@ export default function AlertsScreen() {
           <MaterialIcons name="map" size={19} color={viewMode === 'map' ? '#fff' : '#6b7280'} />
         </Pressable>
       </View>
-    </SafeAreaView>
+    </View>
   );
+}
+
+function toAlertMapField(row: FarmerFieldRow): AlertMapField | null {
+  const joinedField = Array.isArray(row.fields) ? row.fields[0] : row.fields;
+  if (!joinedField) {
+    return null;
+  }
+
+  const geometry = parseGeometry(joinedField.geometry_simplified);
+  if (!geometry) {
+    return null;
+  }
+
+  return {
+    crop: row.crop_type,
+    geometry,
+    id: row.field_id,
+  };
+}
+
+function parseJsonLike(value: unknown): unknown {
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
+function parseGeometry(value: unknown): Geometry | null {
+  value = parseJsonLike(value);
+
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const geometry = value as Partial<Geometry>;
+  if (geometry.type === 'Polygon' || geometry.type === 'MultiPolygon') {
+    return geometry as Geometry;
+  }
+
+  return null;
 }
 
 const styles = StyleSheet.create({
@@ -142,6 +267,7 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     borderWidth: 1,
     flexDirection: 'row',
+    height: 52,
     padding: 4,
     position: 'absolute',
     right: 18,
@@ -158,9 +284,9 @@ const styles = StyleSheet.create({
   toggleButton: {
     alignItems: 'center',
     borderRadius: 13,
-    height: 38,
+    height: 44,
     justifyContent: 'center',
-    width: 38,
+    width: 44,
   },
   toggleButtonActive: {
     backgroundColor: '#2d4a3e',

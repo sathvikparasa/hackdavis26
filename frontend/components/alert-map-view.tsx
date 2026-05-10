@@ -1,10 +1,11 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Pressable, StyleSheet, Text, TextInput, View, type LayoutChangeEvent } from 'react-native';
+import type { Geometry } from 'geojson';
 
 import { AlertsMap, EmptyMapMessage } from '@/components/alerts-map';
-import { ActiveFilterChips, AlertSearchControls } from '@/components/alert-list-view';
+import { ActiveFilterChips } from '@/components/alert-list-view';
 import { WindOverlay, useWindData } from '@/components/wind-particles';
 import type { WindViewport } from '@/components/wind-particles';
 import { AlertItem, AlertSeverity } from '@/lib/alerts';
@@ -14,7 +15,10 @@ const severityConfig: Record<AlertSeverity, { cardBg: string; accent: string }> 
   Moderate: { cardBg: 'rgba(217,119,6,0.04)', accent: '#d97706' },
   Low: { cardBg: 'rgba(35,138,59,0.04)', accent: '#238a3b' },
 };
-
+const MAP_DETAIL_SHEET_BOTTOM = 0;
+const LAYERS_BUTTON_BOTTOM = 28;
+const LAYERS_BUTTON_SHEET_GAP = 12;
+const SHEET_HIDDEN_OFFSET = 260;
 const YOLO_VIEWPORT: WindViewport = {
   latitude: 38.6785,
   latitudeDelta: 0.45,
@@ -24,7 +28,13 @@ const YOLO_VIEWPORT: WindViewport = {
 
 type AlertMapViewProps = {
   alerts: AlertItem[];
+  alertMapFields: {
+    crop: string | null;
+    geometry: Geometry;
+    id: number;
+  }[];
   allAlertsCount: number;
+  centerButtonTop: number;
   crops: string[];
   error: string | null;
   hasActiveFilters: boolean;
@@ -44,7 +54,9 @@ type AlertMapViewProps = {
 
 export function AlertMapView({
   alerts,
+  alertMapFields,
   allAlertsCount,
+  centerButtonTop,
   crops,
   error,
   hasActiveFilters,
@@ -61,37 +73,175 @@ export function AlertMapView({
   setQuery,
   severities,
 }: AlertMapViewProps) {
+  const [detailSheetHeight, setDetailSheetHeight] = useState(0);
+  const [displayedAlert, setDisplayedAlert] = useState<AlertItem | null>(selectedAlert);
+  const [searchExpanded, setSearchExpanded] = useState(false);
+  const [showWindLayer, setShowWindLayer] = useState(false);
   const [windViewport, setWindViewport] = useState(YOLO_VIEWPORT);
+  const detailSheetSlide = useRef(new Animated.Value(SHEET_HIDDEN_OFFSET)).current;
+  const searchInputRef = useRef<TextInput>(null);
+  const searchExpansion = useRef(new Animated.Value(0)).current;
   const wind = useWindData(windViewport);
+  const trimmedQuery = query.trim().toLowerCase();
+  const alertSuggestions = useMemo(
+    () => (trimmedQuery.length >= 2 ? alerts.slice(0, 6) : []),
+    [alerts, trimmedQuery.length]
+  );
+  const layersControlBottom =
+    selectedAlert && detailSheetHeight > 0
+      ? detailSheetHeight + LAYERS_BUTTON_SHEET_GAP
+      : LAYERS_BUTTON_BOTTOM;
+
+  useEffect(() => {
+    if (selectedAlert) {
+      setDisplayedAlert(selectedAlert);
+      Animated.timing(detailSheetSlide, {
+        duration: 240,
+        toValue: 0,
+        useNativeDriver: true,
+      }).start();
+      return;
+    }
+
+    Animated.timing(detailSheetSlide, {
+      duration: 220,
+      toValue: detailSheetHeight || SHEET_HIDDEN_OFFSET,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) {
+        setDisplayedAlert(null);
+      }
+    });
+  }, [detailSheetHeight, detailSheetSlide, selectedAlert]);
+
+  useEffect(() => {
+    Animated.timing(searchExpansion, {
+      duration: 180,
+      toValue: searchExpanded ? 1 : 0,
+      useNativeDriver: false,
+    }).start();
+  }, [searchExpanded, searchExpansion]);
+
+  const collapseSearch = () => {
+    setSearchExpanded(false);
+    searchInputRef.current?.blur();
+  };
+
+  const selectSuggestion = (alert: AlertItem) => {
+    setQuery(alert.pest);
+    onSelectAlert(alert.id);
+    collapseSearch();
+  };
 
   return (
     <View style={styles.mapScreen}>
       <AlertsMap
         alerts={alerts}
+        fields={alertMapFields}
         selectedId={selectedAlertId}
         onSelect={onSelectAlert}
         onClearSelection={onClearSelection}
         focusedLocation={null}
+        centerButtonTop={centerButtonTop}
+        layersControlBottom={layersControlBottom}
         onRegionChangeComplete={setWindViewport}
+        onToggleWindLayer={() => setShowWindLayer((current) => !current)}
+        showWindLayer={showWindLayer}
       />
-      <View pointerEvents="none" style={styles.windLayer}>
-        <WindOverlay viewport={windViewport} wind={wind ?? { speed: 5, deg: 270 }} />
-      </View>
+      {showWindLayer ? (
+        <View pointerEvents="none" style={styles.windLayer}>
+          <WindOverlay viewport={windViewport} wind={wind ?? { speed: 5, deg: 270 }} />
+        </View>
+      ) : null}
 
       <View style={[styles.mapHeader, { paddingTop: headerTop }]}>
-        <AlertSearchControls
-          hasActiveFilters={hasActiveFilters}
-          onOpenFilter={onOpenFilter}
-          query={query}
-          setQuery={setQuery}
-        />
+        <View style={styles.mapTopRow}>
+          <View style={styles.searchBox}>
+            <MaterialIcons name="search" size={22} color="#9ca3af" />
+            <TextInput
+              ref={searchInputRef}
+              placeholder="Search"
+              placeholderTextColor="#9ca3af"
+              returnKeyType="search"
+              style={styles.searchInput}
+              value={query}
+              onChangeText={setQuery}
+              onFocus={() => setSearchExpanded(true)}
+              onSubmitEditing={collapseSearch}
+            />
+          </View>
+          <Animated.View
+            pointerEvents={searchExpanded ? 'none' : 'auto'}
+            style={[
+              styles.filterButtonWrap,
+              {
+                marginLeft: searchExpansion.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [10, 0],
+                }),
+                opacity: searchExpansion.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [1, 0],
+                }),
+                width: searchExpansion.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [52, 0],
+                }),
+              },
+            ]}
+          >
+            <Pressable
+              style={[styles.filterButton, hasActiveFilters && styles.filterButtonActive]}
+              onPress={onOpenFilter}
+            >
+              <MaterialIcons name="tune" size={22} color={hasActiveFilters ? '#fff' : '#4b5563'} />
+            </Pressable>
+          </Animated.View>
+        </View>
 
-        <ActiveFilterChips
-          crops={crops}
-          hasActiveFilters={hasActiveFilters}
-          pestTypes={pestTypes}
-          severities={severities}
-        />
+        {searchExpanded && trimmedQuery.length >= 2 ? (
+          <View style={styles.alertSuggestions}>
+            {alertSuggestions.length > 0 ? (
+              alertSuggestions.map((alert) => (
+                <Pressable
+                  key={alert.id}
+                  style={styles.alertSuggestionItem}
+                  onPress={() => selectSuggestion(alert)}
+                >
+                  {alert.imageUrl ? (
+                    <Image source={{ uri: alert.imageUrl }} style={styles.alertSuggestionImage} contentFit="cover" />
+                  ) : (
+                    <View style={[styles.alertSuggestionIcon, { backgroundColor: severityConfig[alert.severity].accent }]}>
+                      <MaterialIcons name="pest-control" size={17} color="#fff" />
+                    </View>
+                  )}
+                  <View style={styles.alertSuggestionCopy}>
+                    <Text style={styles.alertSuggestionTitle} numberOfLines={1}>
+                      {alert.pest}
+                    </Text>
+                    <Text style={styles.alertSuggestionMeta} numberOfLines={1}>
+                      {alert.vulnerableCropLabel} · {alert.severity}
+                    </Text>
+                  </View>
+                </Pressable>
+              ))
+            ) : (
+              <View style={styles.alertSuggestionItem}>
+                <MaterialIcons name="search" size={20} color="#9ca3af" />
+                <Text style={styles.alertSuggestionEmpty}>No alerts found</Text>
+              </View>
+            )}
+          </View>
+        ) : null}
+
+        <View style={styles.chipsWrap}>
+          <ActiveFilterChips
+            crops={crops}
+            hasActiveFilters={hasActiveFilters}
+            pestTypes={pestTypes}
+            severities={severities}
+          />
+        </View>
       </View>
 
       {loading ? (
@@ -104,18 +254,36 @@ export function AlertMapView({
         <EmptyMapMessage title="No alerts match filters" detail="Adjust search or filters." />
       ) : null}
 
-      {selectedAlert ? (
-        <MapDetailSheet alert={selectedAlert} onOpenAlert={() => onOpenAlert(selectedAlert.id)} />
+      {displayedAlert ? (
+        <MapDetailSheet
+          alert={displayedAlert}
+          onLayout={(event) => setDetailSheetHeight(event.nativeEvent.layout.height)}
+          onOpenAlert={() => onOpenAlert(displayedAlert.id)}
+          translateY={detailSheetSlide}
+        />
       ) : null}
     </View>
   );
 }
 
-function MapDetailSheet({ alert, onOpenAlert }: { alert: AlertItem; onOpenAlert: () => void }) {
+function MapDetailSheet({
+  alert,
+  onLayout,
+  onOpenAlert,
+  translateY,
+}: {
+  alert: AlertItem;
+  onLayout: (event: LayoutChangeEvent) => void;
+  onOpenAlert: () => void;
+  translateY: Animated.Value;
+}) {
   const cfg = severityConfig[alert.severity];
 
   return (
-    <View style={styles.mapDetailSheet}>
+    <Animated.View
+      style={[styles.mapDetailSheet, { transform: [{ translateY }] }]}
+      onLayout={onLayout}
+    >
       <View style={styles.mapDetailTop}>
         {alert.imageUrl ? (
           <Image source={{ uri: alert.imageUrl }} style={styles.mapDetailImage} contentFit="cover" />
@@ -139,21 +307,21 @@ function MapDetailSheet({ alert, onOpenAlert }: { alert: AlertItem; onOpenAlert:
         </View>
       </View>
 
-      <View style={styles.mapMetaRow}>
-        <MaterialIcons name="visibility" size={18} color="#6b7280" />
-        <Text style={styles.mapMetaText}>
-          {alert.distance} · {alert.detected}
-        </Text>
-      </View>
-      <View style={styles.mapMetaRow}>
-        <MaterialIcons name="radio-button-unchecked" size={18} color="#6b7280" />
-        <Text style={styles.mapMetaText}>{alert.travelDistance}</Text>
+      <View style={styles.mapMetaLine}>
+        <View style={styles.mapMetaItem}>
+          <MaterialIcons name="visibility" size={18} color="#6b7280" />
+          <Text style={styles.mapMetaText}>{alert.detected}</Text>
+        </View>
+        <View style={styles.mapMetaItem}>
+          <MaterialIcons name="radio-button-unchecked" size={18} color="#6b7280" />
+          <Text style={styles.mapMetaText}>{alert.travelDistance}</Text>
+        </View>
       </View>
 
       <Pressable style={styles.mapDetailButton} onPress={onOpenAlert}>
         <Text style={styles.mapDetailButtonText}>View Details</Text>
       </Pressable>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -207,13 +375,16 @@ const styles = StyleSheet.create({
   mapDetailSheet: {
     backgroundColor: 'rgba(255,255,255,0.98)',
     borderColor: '#e5e7eb',
-    borderRadius: 24,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     borderWidth: 1,
-    bottom: 104,
-    left: 18,
-    padding: 16,
+    bottom: MAP_DETAIL_SHEET_BOTTOM,
+    left: 0,
+    paddingBottom: 34,
+    paddingHorizontal: 18,
+    paddingTop: 16,
     position: 'absolute',
-    right: 18,
+    right: 0,
     shadowColor: '#111827',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.14,
@@ -231,23 +402,34 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   mapHeader: {
-    gap: 14,
+    gap: 12,
     left: 0,
     paddingBottom: 10,
-    paddingHorizontal: 20,
+    paddingLeft: 0,
+    paddingRight: 108,
     position: 'absolute',
     right: 0,
     zIndex: 6,
   },
-  mapMetaRow: {
+  mapTopRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    marginHorizontal: 18,
+  },
+  mapMetaItem: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: 8,
-    marginTop: 10,
+    minWidth: 0,
+  },
+  mapMetaLine: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 12,
   },
   mapMetaText: {
     color: '#6b7280',
-    flex: 1,
     fontSize: 13,
     fontFamily: 'Outfit_500Medium', fontWeight: '500',
   },
@@ -256,12 +438,114 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   windLayer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
     bottom: 0,
     elevation: 2,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
     zIndex: 2,
+  },
+  filterButton: {
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderColor: '#eef0ef',
+    borderRadius: 17,
+    borderWidth: 1,
+    height: 52,
+    justifyContent: 'center',
+    shadowColor: '#1f2937',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    width: 52,
+  },
+  filterButtonWrap: {
+    height: 52,
+    overflow: 'hidden',
+  },
+  filterButtonActive: {
+    backgroundColor: '#2d4a3e',
+    borderColor: '#2d4a3e',
+  },
+  searchBox: {
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderColor: '#eef0ef',
+    borderRadius: 17,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: 'row',
+    gap: 10,
+    height: 52,
+    paddingHorizontal: 16,
+    shadowColor: '#1f2937',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+  },
+  searchInput: {
+    color: '#111827',
+    flex: 1,
+    fontSize: 16,
+    fontFamily: 'Outfit_600SemiBold', fontWeight: '600',
+  },
+  chipsWrap: {
+    marginHorizontal: 18,
+  },
+  alertSuggestionCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  alertSuggestionEmpty: {
+    color: '#6b7280',
+    fontSize: 15,
+    fontFamily: 'Outfit_500Medium', fontWeight: '500',
+  },
+  alertSuggestionIcon: {
+    alignItems: 'center',
+    borderRadius: 18,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  alertSuggestionImage: {
+    borderRadius: 18,
+    height: 36,
+    width: 36,
+  },
+  alertSuggestionItem: {
+    alignItems: 'center',
+    borderBottomColor: '#f1f2f1',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    minHeight: 56,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  alertSuggestionMeta: {
+    color: '#6b7280',
+    fontSize: 13,
+    fontFamily: 'Outfit_400Regular', fontWeight: '400',
+    marginTop: 3,
+  },
+  alertSuggestions: {
+    backgroundColor: '#fff',
+    borderColor: '#eef0ef',
+    borderRadius: 17,
+    borderWidth: 1,
+    marginHorizontal: 18,
+    marginTop: 8,
+    overflow: 'hidden',
+    shadowColor: '#1f2937',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+  },
+  alertSuggestionTitle: {
+    color: '#111827',
+    fontSize: 15,
+    fontFamily: 'Outfit_700Bold', fontWeight: '900',
   },
 });

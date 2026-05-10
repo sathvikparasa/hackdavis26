@@ -25,6 +25,8 @@ class Settings:
     supabase_report_image_bucket: str = "report-images"
     clerk_issuer: Optional[str] = None
     expo_push_access_token: Optional[str] = None
+    affected_fields_repopulate_interval_seconds: int = 1800
+    affected_fields_background_repopulate: bool = False
 
 
 def get_settings() -> Settings:
@@ -42,4 +44,9 @@ def get_settings() -> Settings:
         supabase_report_image_bucket=os.getenv("SUPABASE_REPORT_IMAGE_BUCKET", "report-images"),
         clerk_issuer=os.getenv("CLERK_ISSUER"),
         expo_push_access_token=os.getenv("EXPO_PUSH_ACCESS_TOKEN"),
+        affected_fields_repopulate_interval_seconds=int(
+            os.getenv("AFFECTED_FIELDS_REPOPULATE_INTERVAL_SECONDS", "1800")
+        ),
+        affected_fields_background_repopulate=os.getenv("AFFECTED_FIELDS_BACKGROUND_REPOPULATE", "false").lower()
+        not in {"0", "false", "no"},
     )

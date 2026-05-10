@@ -76,10 +76,10 @@ type PhotonFeature = {
 };
 
 const INITIAL_REGION = {
-  latitude: 38.544,
-  longitude: -121.741,
-  latitudeDelta: 0.3,
-  longitudeDelta: 0.3,
+  latitude: 38.6785,
+  longitude: -121.9018,
+  latitudeDelta: 0.52,
+  longitudeDelta: 0.64,
 };
 
 const FETCH_DEBOUNCE_MS = 500;
@@ -90,6 +90,8 @@ const DUPLICATE_TAP_GUARD_MS = 250;
 const CROP_PANEL_HEIGHT = 176;
 const UI_FIELD_PADDING = 22;
 const ALERT_RECOMPUTE_DEBOUNCE_MS = 3500;
+const CENTER_BUTTON_LONGITUDE_THRESHOLD = 0.08;
+const CENTER_BUTTON_ZOOM_THRESHOLD = INITIAL_REGION.longitudeDelta * 1.08;
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const YOLO_COUNTY_BOUNDARY = [
   { latitude: 38.9247, longitude: -122.3762 },
@@ -206,6 +208,7 @@ export default function FieldSelectScreen() {
   const [error, setError] = useState<string | null>(null);
   const [locationQuery, setLocationQuery] = useState('');
   const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
+  const [showCenterMapButton, setShowCenterMapButton] = useState(false);
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
   const [selectedFieldsById, setSelectedFieldsById] = useState<Record<number, VisualField>>({});
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -526,8 +529,8 @@ export default function FieldSelectScreen() {
             fill: isSelected ? '#2563eb' : '#3b82f6',
             'fill-opacity': isSelected ? 0.58 : 0.1,
             id: field.id,
-            stroke: isSelected ? '#93c5fd' : isActive ? '#60a5fa' : '#93c5fd',
-            'stroke-width': isSelected || isActive ? 2 : 1,
+            stroke: isActive ? '#1d4ed8' : isSelected ? '#93c5fd' : '#93c5fd',
+            'stroke-width': isActive ? 3 : isSelected ? 2 : 1,
           },
           geometry: field.geometry,
         };
@@ -670,6 +673,7 @@ export default function FieldSelectScreen() {
       };
 
       currentRegionRef.current = nextRegion;
+      setShowCenterMapButton(shouldShowCenterMapButton(nextRegion));
       requestAnimationFrame(() => {
         mapRef.current?.animateToRegion(nextRegion, 420);
       });
@@ -705,10 +709,17 @@ export default function FieldSelectScreen() {
       };
 
       currentRegionRef.current = nextRegion;
+      setShowCenterMapButton(shouldShowCenterMapButton(nextRegion));
       mapRef.current?.animateToRegion(nextRegion, 420);
     },
     [activeSavedFieldIndex, cropByFieldId, savedFields]
   );
+
+  const recenterMap = useCallback(() => {
+    currentRegionRef.current = INITIAL_REGION;
+    setShowCenterMapButton(false);
+    mapRef.current?.animateToRegion(INITIAL_REGION, 420);
+  }, []);
 
   const selectLocationSuggestion = useCallback((suggestion: LocationSuggestion) => {
     const nextRegion = {
@@ -721,6 +732,7 @@ export default function FieldSelectScreen() {
     setLocationQuery(suggestion.label);
     setShowLocationSuggestions(false);
     currentRegionRef.current = nextRegion;
+    setShowCenterMapButton(shouldShowCenterMapButton(nextRegion));
     mapRef.current?.animateToRegion(nextRegion, 450);
     loadFieldsForRegion(nextRegion);
   }, [loadFieldsForRegion]);
@@ -803,6 +815,7 @@ export default function FieldSelectScreen() {
             mapType="satellite"
             onRegionChangeComplete={(region) => {
               currentRegionRef.current = region;
+              setShowCenterMapButton(shouldShowCenterMapButton(region));
               const canLoad = isZoomedInEnough(region);
               if (!canLoad) {
                 requestIdRef.current += 1;
@@ -819,7 +832,7 @@ export default function FieldSelectScreen() {
             <Polygon
               coordinates={YOLO_MASK_OUTER_BOUNDARY}
               holes={[YOLO_COUNTY_BOUNDARY]}
-              fillColor="rgba(0,0,0,0.48)"
+              fillColor="rgba(0,0,0,0.56)"
               strokeColor="rgba(0,0,0,0)"
               strokeWidth={0}
               tappable={false}
@@ -874,7 +887,7 @@ export default function FieldSelectScreen() {
               <View style={styles.searchBox}>
                 <MaterialIcons name="search" size={22} color="#9ca3af" />
                 <TextInput
-                  placeholder="Search location"
+                  placeholder="Search"
                   placeholderTextColor="#9ca3af"
                   returnKeyType="search"
                   style={styles.searchInput}
@@ -915,10 +928,20 @@ export default function FieldSelectScreen() {
               </View>
             ) : null}
           </View>
+
+          {showCenterMapButton ? (
+            <Pressable
+              accessibilityLabel="Center map"
+              style={[styles.centerMapButton, { top: insets.top + 76 }]}
+              onPress={recenterMap}
+            >
+              <MaterialIcons name="filter-center-focus" size={22} color="#1f2937" />
+            </Pressable>
+          ) : null}
         </>
       )}
 
-      <View style={[styles.fixedViewToggle, { top: insets.top + 18 }]}>
+      <View style={[styles.fixedViewToggle, { top: insets.top + 12 }]}>
         <Pressable
           style={[styles.toggleButton, viewMode === 'list' && styles.toggleButtonActive]}
           onPress={() => setViewMode('list')}
@@ -1089,6 +1112,13 @@ function parseGeometry(value: unknown): Geometry | null {
 
 function isZoomedInEnough(region: Region) {
   return Math.min(region.latitudeDelta, region.longitudeDelta) <= MIN_LOAD_ZOOM_DELTA;
+}
+
+function shouldShowCenterMapButton(region: Region) {
+  const pannedSideways = Math.abs(region.longitude - INITIAL_REGION.longitude) > CENTER_BUTTON_LONGITUDE_THRESHOLD;
+  const zoomedOut = region.longitudeDelta > CENTER_BUTTON_ZOOM_THRESHOLD;
+
+  return pannedSideways || zoomedOut;
 }
 
 function regionToBounds(region: Region) {
@@ -1383,6 +1413,23 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_700Bold', fontWeight: '700',
     lineHeight: 27,
   },
+  centerMapButton: {
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderColor: '#e5e7eb',
+    borderRadius: 17,
+    borderWidth: 1,
+    height: 52,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: 18,
+    shadowColor: '#111827',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    width: 52,
+    zIndex: 11,
+  },
   errorText: {
     color: '#b91c1c',
     fontSize: 12,
@@ -1438,6 +1485,7 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     borderWidth: 1,
     flexDirection: 'row',
+    height: 52,
     padding: 4,
     position: 'absolute',
     right: 18,
@@ -1577,7 +1625,7 @@ const styles = StyleSheet.create({
   listHeader: {
     alignItems: 'center',
     flexDirection: 'row',
-    paddingRight: 92,
+    paddingRight: 108,
     justifyContent: 'space-between',
   },
   listMeta: {
@@ -1679,7 +1727,7 @@ const styles = StyleSheet.create({
   searchPanel: {
     left: 0,
     paddingBottom: 10,
-    paddingRight: 96,
+    paddingRight: 108,
     position: 'absolute',
     right: 0,
     zIndex: 6,
@@ -1767,9 +1815,9 @@ const styles = StyleSheet.create({
   toggleButton: {
     alignItems: 'center',
     borderRadius: 13,
-    height: 38,
+    height: 44,
     justifyContent: 'center',
-    width: 38,
+    width: 44,
   },
   toggleButtonActive: {
     backgroundColor: '#2d4a3e',

@@ -1,5 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import type { Geometry } from 'geojson';
 
 import { AlertItem, AlertSeverity, projectAlerts } from '@/lib/alerts';
 import type { WindViewport } from '@/components/wind-particles';
@@ -12,18 +13,32 @@ const severityColors: Record<AlertSeverity, string> = {
 
 export function AlertsMap({
   alerts,
+  fields: _fields = [],
   selectedId,
   onSelect,
   onClearSelection,
   focusedLocation,
+  centerButtonTop: _centerButtonTop,
+  layersControlBottom: _layersControlBottom,
   onRegionChangeComplete,
+  onToggleWindLayer: _onToggleWindLayer,
+  showWindLayer: _showWindLayer,
 }: {
   alerts: AlertItem[];
+  fields?: {
+    crop: string | null;
+    geometry: Geometry;
+    id: number;
+  }[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   onClearSelection: () => void;
   focusedLocation: { latitude: number; longitude: number } | null;
+  centerButtonTop?: number;
+  layersControlBottom?: number;
   onRegionChangeComplete?: (viewport: WindViewport) => void;
+  onToggleWindLayer?: () => void;
+  showWindLayer?: boolean;
 }) {
   const projected = projectAlerts(alerts);
   void onRegionChangeComplete;

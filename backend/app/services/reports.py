@@ -3,6 +3,7 @@ import logging
 from app.config import get_settings
 from app.models import (
     AnalysisResponse,
+    RecomputeAllAffectedFieldsResponse,
     RecomputeFarmerFieldsResponse,
     ReportResponse,
     SpreadAnalysis,
@@ -17,6 +18,7 @@ from app.services.fields import get_candidate_farmer_fields, get_candidate_field
 from app.services.irrigation import calculate_irrigation_alerts
 from app.services.push_notifications import notify_affected_field_owners
 from app.services.report_db import (
+    delete_all_affected_fields,
     delete_affected_fields_for_fields,
     insert_report,
     list_reports_for_recompute,
@@ -150,6 +152,37 @@ def recompute_farmer_field_alerts(
         field_ids=sorted(filtered_field_ids) or None,
         reports_checked=len(reports),
         reports_with_alerts=reports_with_alerts,
+        affected_fields_upserted=affected_fields_upserted,
+    )
+
+
+def repopulate_all_affected_fields() -> RecomputeAllAffectedFieldsResponse:
+    deleted_count = delete_all_affected_fields()
+    reports = list_reports_for_recompute()
+    reports_with_alerts = 0
+    affected_fields_upserted = 0
+
+    for report in reports:
+        spread = calculate_report_spread(
+            analysis=report.analysis,
+            crop_type=report.crop_type,
+            latitude=report.latitude,
+            longitude=report.longitude,
+            reporter_user_id=None,
+        )
+        if not spread.alerts:
+            continue
+
+        affected_fields_upserted += upsert_affected_fields(
+            report_id=report.id,
+            spread=spread,
+        )
+        reports_with_alerts += 1
+
+    return RecomputeAllAffectedFieldsResponse(
+        reports_checked=len(reports),
+        reports_with_alerts=reports_with_alerts,
+        affected_fields_deleted=deleted_count,
         affected_fields_upserted=affected_fields_upserted,
     )
 
