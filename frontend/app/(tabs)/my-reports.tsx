@@ -126,7 +126,7 @@ function Speedometer({ score }: { score: number | null }) {
   );
 }
 
-function RiskCard({ reports }: { reports: Report[] }) {
+function RiskCard({ reports, userId }: { reports: Report[]; userId: string }) {
   const [avgScore, setAvgScore] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -136,15 +136,43 @@ function RiskCard({ reports }: { reports: Report[] }) {
       setLoading(false);
       return;
     }
-    const reportIds = reports.map((r) => r.id);
-    supabase
-      .from('affected_fields')
-      .select('risk_score')
-      .in('report_id', reportIds)
-      .then(({ data }) => {
+
+    async function load() {
+      setLoading(true);
+      try {
+        // Get the user's profile ID
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('clerk_user_id', userId)
+          .single();
+
+        // Get the field IDs belonging to this user
+        const userFieldIds: number[] = [];
+        if (profile?.id) {
+          const { data: farmerFields } = await supabase
+            .from('farmer_fields')
+            .select('field_id')
+            .eq('profile_id', profile.id);
+          (farmerFields ?? []).forEach((ff: { field_id: number }) => userFieldIds.push(ff.field_id));
+        }
+
+        const reportIds = reports.map((r) => r.id);
+
+        // Query affected_fields restricted to the user's own fields
+        let query = supabase
+          .from('affected_fields')
+          .select('risk_score')
+          .in('report_id', reportIds);
+        if (userFieldIds.length > 0) {
+          query = query.in('field_id', userFieldIds);
+        }
+
+        const { data } = await query;
         const scores = (data ?? [])
           .map((r: { risk_score: number | null }) => r.risk_score)
           .filter((s): s is number => typeof s === 'number');
+
         if (scores.length > 0) {
           setAvgScore(scores.reduce((a, b) => a + b, 0) / scores.length);
         } else {
@@ -154,9 +182,13 @@ function RiskCard({ reports }: { reports: Report[] }) {
             .filter((c): c is number => typeof c === 'number' && c > 0);
           setAvgScore(confScores.length > 0 ? confScores.reduce((a, b) => a + b, 0) / confScores.length : null);
         }
+      } finally {
         setLoading(false);
-      });
-  }, [reports.map((r) => r.id).join(',')]);
+      }
+    }
+
+    load();
+  }, [reports.map((r) => r.id).join(','), userId]);
 
   const level = avgScore !== null ? getRiskLevel(avgScore) : null;
   const cfg = level ? RISK_CONFIG[level] : null;
@@ -191,6 +223,7 @@ export default function MyReportsScreen() {
   const { isSignedIn, userId } = useAuth();
   const router = useRouter();
   const [reports, setReports] = useState<Report[]>([]);
+  const [riskScores, setRiskScores] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
   const loadReports = useCallback(async () => {
@@ -203,7 +236,50 @@ export default function MyReportsScreen() {
         .eq('reporter_user_id', userId)
         .order('created_at', { ascending: false })
         .limit(50);
-      setReports(data ?? []);
+      const fetched = data ?? [];
+      setReports(fetched);
+
+      if (fetched.length === 0) return;
+
+      // Get user's field IDs via profile → farmer_fields
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('clerk_user_id', userId)
+        .single();
+
+      let userFieldIds: number[] = [];
+      if (profile?.id) {
+        const { data: farmerFields } = await supabase
+          .from('farmer_fields')
+          .select('field_id')
+          .eq('profile_id', profile.id);
+        userFieldIds = (farmerFields ?? []).map((ff: { field_id: number }) => ff.field_id);
+      }
+
+      // Fetch risk scores for each report, restricted to the user's own fields
+      const reportIds = fetched.map((r) => r.id);
+      let query = supabase
+        .from('affected_fields')
+        .select('report_id, risk_score')
+        .in('report_id', reportIds);
+      if (userFieldIds.length > 0) query = query.in('field_id', userFieldIds);
+
+      const { data: affectedData } = await query;
+
+      // Average risk score per report (a report may affect multiple user fields)
+      const scoreMap: Record<string, number[]> = {};
+      for (const row of affectedData ?? []) {
+        const r = row as { report_id: string; risk_score: number | null };
+        if (typeof r.risk_score === 'number') {
+          (scoreMap[r.report_id] ??= []).push(r.risk_score);
+        }
+      }
+      const avgMap: Record<string, number> = {};
+      for (const [id, scores] of Object.entries(scoreMap)) {
+        avgMap[id] = scores.reduce((a, b) => a + b, 0) / scores.length;
+      }
+      setRiskScores(avgMap);
     } finally {
       setLoading(false);
     }
@@ -251,11 +327,13 @@ export default function MyReportsScreen() {
           <RefreshControl refreshing={loading} onRefresh={loadReports} tintColor="#2d4a3e" colors={['#2d4a3e']} />
         }
       >
-        <Text style={styles.heading}>My Reports</Text>
+        <Text style={styles.heading}>My Data</Text>
 
-        {!loading && <RiskCard reports={reports} />}
+        <Text style={styles.subheading}>Your crop risks</Text>
 
-        <Text style={styles.subheading}>Your recent reports.</Text>
+        {!loading && <RiskCard reports={reports} userId={userId ?? ''} />}
+
+        <Text style={styles.subheading}>Your reports</Text>
 
         {!loading && reports.length === 0 ? (
           <View style={styles.emptyCard}>
@@ -269,6 +347,7 @@ export default function MyReportsScreen() {
               <ReportCard
                 key={report.id}
                 report={report}
+                riskScore={riskScores[report.id] ?? null}
                 onDelete={() => handleDelete(report.id)}
                 onPress={() => router.push(`/alert/${report.id}`)}
               />
@@ -282,16 +361,15 @@ export default function MyReportsScreen() {
 
 function ReportCard({
   report,
+  riskScore,
   onDelete,
   onPress,
 }: {
   report: Report;
+  riskScore: number | null;
   onDelete: () => void;
   onPress: () => void;
 }) {
-  const confidence = report.confidence != null ? Math.round(report.confidence * 100) : null;
-  const confColor =
-    confidence == null ? '#9ca3af' : confidence >= 70 ? '#2d4a3e' : confidence >= 40 ? '#d97706' : '#d32f2f';
   const date = report.created_at
     ? new Date(report.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : '—';
@@ -299,6 +377,9 @@ function ReportCard({
     report.image_bucket && report.image_path
       ? `${SUPABASE_URL}/storage/v1/object/public/${report.image_bucket}/${report.image_path}`
       : null;
+
+  const riskLevel = riskScore !== null ? getRiskLevel(riskScore) : null;
+  const riskCfg = riskLevel ? RISK_CONFIG[riskLevel] : null;
 
   const renderRightActions = () => (
     <Pressable style={styles.deleteAction} onPress={onDelete}>
@@ -323,9 +404,9 @@ function ReportCard({
             <Text style={styles.metaText}>{date}</Text>
           </View>
         </View>
-        {confidence != null && (
-          <View style={[styles.confBadge, { backgroundColor: confColor + '18' }]}>
-            <Text style={[styles.confText, { color: confColor }]}>{confidence}%</Text>
+        {riskCfg && riskScore !== null && (
+          <View style={[styles.confBadge, { backgroundColor: riskCfg.color + '18' }]}>
+            <Text style={[styles.confText, { color: riskCfg.color }]}>{Math.round(riskScore * 100)}%</Text>
           </View>
         )}
         <MaterialIcons name="chevron-right" size={20} color="#d1d5db" />

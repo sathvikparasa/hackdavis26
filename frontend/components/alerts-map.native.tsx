@@ -90,7 +90,7 @@ const radiusFillColors: Record<AlertSeverity, string> = {
   Low: 'rgba(35,138,59,0.13)',
 };
 
-function PinMarker({ alert, onSelect }: { alert: AlertItem; onSelect: (id: string) => void }) {
+function PinMarker({ alert, onSelect, showLabel }: { alert: AlertItem; onSelect: (id: string) => void; showLabel: boolean }) {
   const [tracked, setTracked] = useState(!!alert.imageUrl);
   const stopTracking = () => setTracked(false);
 
@@ -120,11 +120,13 @@ function PinMarker({ alert, onSelect }: { alert: AlertItem; onSelect: (id: strin
             </View>
           )}
         </View>
-        <View style={styles.alertPinLabel}>
-          <Text style={styles.alertPinLabelText} numberOfLines={1}>
-            {alert.pest}
-          </Text>
-        </View>
+        {showLabel ? (
+          <View style={styles.alertPinLabel}>
+            <Text style={styles.alertPinLabelText}>
+              {alert.pest}
+            </Text>
+          </View>
+        ) : null}
       </View>
     </Marker>
   );
@@ -163,6 +165,8 @@ function AlertsMapComponent({
   const [showCenterMapButton, setShowCenterMapButton] = useState(false);
   const [showLayersMenu, setShowLayersMenu] = useState(false);
   const [showFieldsLayer, setShowFieldsLayer] = useState(false);
+  const [latitudeDelta, setLatitudeDelta] = useState(YOLO_REGION.latitudeDelta);
+  const showPinLabels = latitudeDelta < 0.22;
   const hasActiveLayer = showFieldsLayer || !!showWindLayer;
   const fieldPolygons = useMemo(
     () => fields.flatMap((field) => geometryToPolygonRings(field.geometry, field.id)),
@@ -315,7 +319,7 @@ function AlertsMapComponent({
           );
         })}
         {alerts.map((alert) => (
-          <PinMarker key={alert.id} alert={alert} onSelect={selectAlert} />
+          <PinMarker key={alert.id} alert={alert} onSelect={selectAlert} showLabel={showPinLabels} />
         ))}
       </MapView>
 
@@ -377,6 +381,7 @@ function AlertsMapComponent({
       longitude: region.longitude,
       longitudeDelta: region.longitudeDelta,
     });
+    setLatitudeDelta(region.latitudeDelta);
     setShowCenterMapButton(shouldShowCenterMapButton(region));
   }
 }
@@ -507,7 +512,6 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     borderWidth: 1,
     marginTop: 5,
-    maxWidth: 112,
     paddingHorizontal: 7,
     paddingVertical: 3,
     shadowColor: '#111827',
