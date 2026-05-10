@@ -8,8 +8,10 @@ import {
   Animated,
   Easing,
   Keyboard,
+  KeyboardAvoidingView,
   Platform,
   type KeyboardEvent,
+  type LayoutChangeEvent,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -87,7 +89,11 @@ const MAX_REGION_FIELDS = 1200;
 const MIN_LOAD_ZOOM_DELTA = 0.12;
 const VIEWPORT_PADDING_RATIO = 0.15;
 const DUPLICATE_TAP_GUARD_MS = 250;
-const CROP_PANEL_HEIGHT = 176;
+const CROP_PANEL_HEIGHT = 220;
+const CROP_PANEL_HIDDEN_OFFSET = 360;
+const FIELD_STEPPER_HEIGHT = 60;
+const FIELD_STEPPER_GAP = 6;
+const MAP_SEARCH_CLEARANCE = 84;
 const UI_FIELD_PADDING = 22;
 const ALERT_RECOMPUTE_DEBOUNCE_MS = 3500;
 const CENTER_BUTTON_LONGITUDE_THRESHOLD = 0.08;
@@ -203,7 +209,7 @@ export default function FieldSelectScreen() {
   const [cropDraft, setCropDraft] = useState('');
   const [fields, setFields] = useState<VisualField[]>([]);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const [keyboardAnimationDuration, setKeyboardAnimationDuration] = useState(220);
+  const [cropPanelHeight, setCropPanelHeight] = useState(CROP_PANEL_HEIGHT);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [locationQuery, setLocationQuery] = useState('');
@@ -220,7 +226,7 @@ export default function FieldSelectScreen() {
   const lastToggleRef = useRef<{ id: number; time: number } | null>(null);
   const locationAbortRef = useRef<AbortController | null>(null);
   const mapRef = useRef<MapView>(null);
-  const cropPanelBottomAnim = useRef(new Animated.Value(0)).current;
+  const cropPanelSlideAnim = useRef(new Animated.Value(CROP_PANEL_HIDDEN_OFFSET)).current;
   const requestIdRef = useRef(0);
   const savedFieldsRequestRef = useRef(0);
   const currentRegionRef = useRef<Region>(INITIAL_REGION);
@@ -402,12 +408,10 @@ export default function FieldSelectScreen() {
   useEffect(() => {
     function handleKeyboardShow(event: KeyboardEvent) {
       setKeyboardHeight(event.endCoordinates.height);
-      setKeyboardAnimationDuration(event.duration || 220);
     }
 
-    function handleKeyboardHide(event: KeyboardEvent) {
+    function handleKeyboardHide() {
       setKeyboardHeight(0);
-      setKeyboardAnimationDuration(event.duration || 220);
     }
 
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -540,20 +544,50 @@ export default function FieldSelectScreen() {
   );
 
   const stepperBottom = insets.bottom + 18;
-  const cropPanelBottom = keyboardHeight > 0 ? keyboardHeight + 12 : stepperBottom + 68;
+  const cropPanelBottom = keyboardHeight;
+  const mapTopClearance = insets.top + MAP_SEARCH_CLEARANCE;
+  const activeSheetStackHeight = cropPanelBottom + cropPanelHeight;
+  const fieldStepperBottom = activeField && viewMode === 'map'
+    ? activeSheetStackHeight + FIELD_STEPPER_GAP
+    : stepperBottom;
+  const fieldFocusBottomClearance = activeField && viewMode === 'map'
+    ? fieldStepperBottom + FIELD_STEPPER_HEIGHT + UI_FIELD_PADDING
+    : stepperBottom + FIELD_STEPPER_HEIGHT + UI_FIELD_PADDING;
 
   useEffect(() => {
-    Animated.timing(cropPanelBottomAnim, {
-      duration: keyboardAnimationDuration,
-      easing: Easing.out(Easing.quad),
-      toValue: cropPanelBottom,
-      useNativeDriver: false,
-    }).start();
-  }, [cropPanelBottom, cropPanelBottomAnim, keyboardAnimationDuration]);
+    if (!activeField || viewMode !== 'map') {
+      return;
+    }
+
+    void centerFieldInVisibleBand(
+      activeField,
+      mapRef.current,
+      currentRegionRef.current,
+      mapTopClearance,
+      fieldFocusBottomClearance,
+      viewportHeight
+    );
+  }, [activeField, fieldFocusBottomClearance, keyboardHeight, mapTopClearance, viewportHeight, viewMode]);
 
   const dismissCropPanel = useCallback(() => {
     Keyboard.dismiss();
-    setActiveField(null);
+    Animated.timing(cropPanelSlideAnim, {
+      duration: 220,
+      easing: Easing.in(Easing.quad),
+      toValue: CROP_PANEL_HIDDEN_OFFSET,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) {
+        setActiveField(null);
+      }
+    });
+  }, [cropPanelSlideAnim]);
+
+  const updateCropPanelHeight = useCallback((event: LayoutChangeEvent) => {
+    const nextHeight = event.nativeEvent.layout.height;
+    if (nextHeight > 0) {
+      setCropPanelHeight(nextHeight);
+    }
   }, []);
 
   const openCropSheet = useCallback((field: VisualField) => {
@@ -570,8 +604,21 @@ export default function FieldSelectScreen() {
 
     setActiveField(field);
     setCropDraft(cropByFieldId[field.id] ?? '');
-    void centerFieldIfCovered(field, mapRef.current, currentRegionRef.current, cropPanelBottom, viewportHeight);
-  }, [cropByFieldId, cropPanelBottom, isSignedIn, viewportHeight]);
+    Animated.timing(cropPanelSlideAnim, {
+      duration: 240,
+      easing: Easing.out(Easing.quad),
+      toValue: 0,
+      useNativeDriver: true,
+    }).start();
+    void centerFieldInVisibleBand(
+      field,
+      mapRef.current,
+      currentRegionRef.current,
+      mapTopClearance,
+      fieldFocusBottomClearance,
+      viewportHeight
+    );
+  }, [cropByFieldId, cropPanelSlideAnim, fieldFocusBottomClearance, isSignedIn, mapTopClearance, viewportHeight]);
 
   const saveCrop = useCallback(() => {
     if (!activeField) {
@@ -659,6 +706,12 @@ export default function FieldSelectScreen() {
       setViewMode('map');
       setActiveField(field);
       setCropDraft(cropByFieldId[field.id] ?? '');
+      Animated.timing(cropPanelSlideAnim, {
+        duration: 240,
+        easing: Easing.out(Easing.quad),
+        toValue: 0,
+        useNativeDriver: true,
+      }).start();
 
       if (!center) {
         return;
@@ -678,7 +731,7 @@ export default function FieldSelectScreen() {
         mapRef.current?.animateToRegion(nextRegion, 420);
       });
     },
-    [cropByFieldId]
+    [cropByFieldId, cropPanelSlideAnim]
   );
 
   const focusSavedField = useCallback(
@@ -695,6 +748,12 @@ export default function FieldSelectScreen() {
       setViewMode('map');
       setActiveField(field);
       setCropDraft(cropByFieldId[field.id] ?? '');
+      Animated.timing(cropPanelSlideAnim, {
+        duration: 240,
+        easing: Easing.out(Easing.quad),
+        toValue: 0,
+        useNativeDriver: true,
+      }).start();
 
       if (!center) {
         return;
@@ -712,7 +771,7 @@ export default function FieldSelectScreen() {
       setShowCenterMapButton(shouldShowCenterMapButton(nextRegion));
       mapRef.current?.animateToRegion(nextRegion, 420);
     },
-    [activeSavedFieldIndex, cropByFieldId, savedFields]
+    [activeSavedFieldIndex, cropByFieldId, cropPanelSlideAnim, savedFields]
   );
 
   const recenterMap = useCallback(() => {
@@ -957,43 +1016,83 @@ export default function FieldSelectScreen() {
       </View>
 
       {activeField && viewMode === 'map' ? (
-        <Animated.View style={[styles.cropPanel, { bottom: cropPanelBottomAnim }]}>
-          <View style={styles.panelHeader}>
-            <Text style={styles.sheetMeta}>
-              {cropByFieldId[activeField.id] ? 'Edit crop type' : 'Choose crop type'}
-            </Text>
-            <Pressable style={styles.closeButton} onPress={dismissCropPanel}>
-              <Text style={styles.closeButtonText}>×</Text>
-            </Pressable>
-          </View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'position' : 'height'}
+          contentContainerStyle={styles.cropPanelAvoiderContent}
+          keyboardVerticalOffset={0}
+          pointerEvents="box-none"
+          style={styles.cropPanelAvoider}
+        >
+          <Animated.View
+            style={[
+              styles.cropPanelStack,
+              {
+                transform: [{ translateY: cropPanelSlideAnim }],
+              },
+            ]}
+          >
+            {isSignedIn && savedFields.length > 0 ? (
+              <View style={[styles.fieldStepper, styles.fieldStepperStacked]}>
+                <Pressable style={styles.stepperButton} onPress={() => focusSavedField(-1)}>
+                  <MaterialIcons name="chevron-left" size={28} color="#1f2937" />
+                </Pressable>
 
-          <TextInput
-            autoCapitalize="words"
-            autoCorrect
-            placeholder="Crop type"
-            placeholderTextColor="#9ca3af"
-            returnKeyType="done"
-            style={styles.cropInput}
-            value={cropDraft}
-            onChangeText={setCropDraft}
-            onSubmitEditing={Keyboard.dismiss}
-          />
+                <View style={styles.stepperCopy}>
+                  <Text style={styles.stepperTitle} numberOfLines={1}>
+                    {activeSavedFieldIndex >= 0
+                      ? cropByFieldId[savedFields[activeSavedFieldIndex].id] || 'Saved field'
+                      : 'My Crops'}
+                  </Text>
+                  <Text style={styles.stepperMeta}>
+                    {activeSavedFieldIndex >= 0 ? activeSavedFieldIndex + 1 : savedFields.length} of {savedFields.length}
+                  </Text>
+                </View>
 
-          <View style={styles.sheetActions}>
-            {cropByFieldId[activeField.id] ? (
-              <Pressable style={styles.removeButton} onPress={removeActiveField}>
-                <Text style={styles.removeButtonText}>Remove</Text>
-              </Pressable>
+                <Pressable style={styles.stepperButton} onPress={() => focusSavedField(1)}>
+                  <MaterialIcons name="chevron-right" size={28} color="#1f2937" />
+                </Pressable>
+              </View>
             ) : null}
-            <Pressable
-              style={[styles.saveButton, !cropDraft.trim() && styles.saveButtonDisabled]}
-              disabled={!cropDraft.trim()}
-              onPress={() => { if (step === 9) advance(); saveCrop(); }}
-            >
-              <Text style={styles.saveButtonText}>Save Crop</Text>
-            </Pressable>
-          </View>
-        </Animated.View>
+
+            <View style={styles.cropPanel} onLayout={updateCropPanelHeight}>
+              <View style={styles.panelHeader}>
+                <Text style={styles.sheetMeta}>
+                  {cropByFieldId[activeField.id] ? 'Edit crop type' : 'Choose crop type'}
+                </Text>
+                <Pressable style={styles.closeButton} onPress={dismissCropPanel}>
+                  <Text style={styles.closeButtonText}>×</Text>
+                </Pressable>
+              </View>
+
+              <TextInput
+                autoCapitalize="words"
+                autoCorrect
+                placeholder="Crop type"
+                placeholderTextColor="#9ca3af"
+                returnKeyType="done"
+                style={styles.cropInput}
+                value={cropDraft}
+                onChangeText={setCropDraft}
+                onSubmitEditing={Keyboard.dismiss}
+              />
+
+              <View style={styles.sheetActions}>
+                {cropByFieldId[activeField.id] ? (
+                  <Pressable style={styles.removeButton} onPress={removeActiveField}>
+                    <Text style={styles.removeButtonText}>Remove</Text>
+                  </Pressable>
+                ) : null}
+                <Pressable
+                  style={[styles.saveButton, !cropDraft.trim() && styles.saveButtonDisabled]}
+                  disabled={!cropDraft.trim()}
+                  onPress={() => { if (step === 9) advance(); saveCrop(); }}
+                >
+                  <Text style={styles.saveButtonText}>Save Crop</Text>
+                </Pressable>
+              </View>
+            </View>
+          </Animated.View>
+        </KeyboardAvoidingView>
       ) : null}
 
       {viewMode === 'map' && (loading || error) && !activeField ? (
@@ -1003,8 +1102,8 @@ export default function FieldSelectScreen() {
         </View>
       ) : null}
 
-      {viewMode === 'map' && isSignedIn && savedFields.length > 0 ? (
-        <View style={[styles.fieldStepper, { bottom: stepperBottom }]}>
+      {viewMode === 'map' && isSignedIn && savedFields.length > 0 && !activeField ? (
+        <View style={[styles.fieldStepper, { bottom: fieldStepperBottom }]}>
           <Pressable style={styles.stepperButton} onPress={() => focusSavedField(-1)}>
             <MaterialIcons name="chevron-left" size={28} color="#1f2937" />
           </Pressable>
@@ -1133,11 +1232,12 @@ function regionToBounds(region: Region) {
   };
 }
 
-async function centerFieldIfCovered(
+async function centerFieldInVisibleBand(
   field: VisualField,
   map: MapView | null,
   region: Region,
-  cropPanelBottom: number,
+  topClearance: number,
+  bottomClearance: number,
   viewportHeight: number
 ) {
   if (!map) {
@@ -1150,18 +1250,20 @@ async function centerFieldIfCovered(
   }
 
   try {
-    const point = await map.pointForCoordinate(center);
-    const coveredFromBottom = cropPanelBottom + CROP_PANEL_HEIGHT + UI_FIELD_PADDING;
-    const coveredAreaTop = viewportHeight - coveredFromBottom;
-    const fieldIsCoveredByBottomUi = point.y >= coveredAreaTop;
-    if (!fieldIsCoveredByBottomUi) {
+    await map.pointForCoordinate(center);
+    const visibleTop = Math.min(topClearance, viewportHeight * 0.38);
+    const visibleBottom = Math.max(visibleTop + 80, viewportHeight - bottomClearance);
+    const targetY = visibleTop + (visibleBottom - visibleTop) / 2;
+    if (!Number.isFinite(targetY) || viewportHeight <= 0) {
       return;
     }
+    const targetRatio = Math.min(0.78, Math.max(0.22, targetY / viewportHeight));
+    const targetLatitude = center.latitude + (targetRatio - 0.5) * region.latitudeDelta;
 
     map.animateToRegion(
       {
         ...region,
-        latitude: center.latitude - (region.latitudeDelta * 0.28),
+        latitude: targetLatitude,
         longitude: center.longitude,
       },
       350
@@ -1385,19 +1487,33 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   cropPanel: {
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.98)',
     borderColor: '#e5e7eb',
-    borderRadius: 16,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     borderWidth: 1,
-    left: 14,
-    padding: 12,
-    position: 'absolute',
-    right: 14,
+    paddingBottom: 34,
+    paddingHorizontal: 18,
+    paddingTop: 16,
     shadowColor: '#111827',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.14,
+    shadowRadius: 24,
+    width: '100%',
     zIndex: 8,
+  },
+  cropPanelStack: {
+    width: '100%',
+  },
+  cropPanelAvoider: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    zIndex: 8,
+  },
+  cropPanelAvoiderContent: {
+    justifyContent: 'flex-end',
   },
   closeButton: {
     alignItems: 'center',
@@ -1476,7 +1592,15 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.14,
     shadowRadius: 20,
-    zIndex: 7,
+    zIndex: 9,
+  },
+  fieldStepperStacked: {
+    bottom: undefined,
+    left: undefined,
+    marginBottom: FIELD_STEPPER_GAP,
+    marginHorizontal: 18,
+    position: 'relative',
+    right: undefined,
   },
   fixedViewToggle: {
     alignItems: 'center',

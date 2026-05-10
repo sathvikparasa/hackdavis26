@@ -21,7 +21,7 @@ def get_candidate_fields(
       select
         id,
         coalesce(unique_id, 'field_' || id::text) as name,
-        coalesce(main_crop, 'unknown') as crop_type,
+        coalesce(nullif(main_crop_name, ''), main_crop, 'unknown') as crop_type,
         coalesce(
           case
             when label_point ? 'longitude' and label_point ? 'latitude'

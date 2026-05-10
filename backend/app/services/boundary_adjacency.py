@@ -1,3 +1,4 @@
+import logging
 import re
 
 import psycopg
@@ -10,6 +11,8 @@ from app.services.spread import ADJACENCY_HOP_DISTANCE_MILES
 METERS_PER_MILE = 1609.344
 DEGREES_PER_MILE = 1 / 69
 MAX_ADJACENCY_HOPS = 25
+
+logger = logging.getLogger(__name__)
 
 
 def calculate_boundary_adjacency_alerts(
@@ -26,7 +29,16 @@ def calculate_boundary_adjacency_alerts(
 
     crop_keys = _affected_crop_keys(source.crop_type, vulnerable_crop)
     if not crop_keys:
+        logger.info("Skipping boundary adjacency: no affected crop keys")
         return []
+
+    logger.info(
+        "Calculating boundary adjacency crop_keys=%s search_radius_miles=%s hop_miles=%s reporter_scoped=%s",
+        sorted(crop_keys),
+        search_radius_miles,
+        hop_distance_miles,
+        bool(reporter_user_id),
+    )
 
     search_meters = max(search_radius_miles, 0) * METERS_PER_MILE
     hop_meters = max(hop_distance_miles, 0) * METERS_PER_MILE
@@ -47,24 +59,24 @@ def calculate_boundary_adjacency_alerts(
       from scoped_fields sf
       cross join source s
       where sf.crop_key = any(%(crop_keys)s)
-        and sf.geometry && st_expand(s.point, %(search_degrees)s)
-        and st_dwithin(sf.geometry::geography, s.point::geography, %(search_meters)s)
+        and sf.point && st_expand(s.point, %(search_degrees)s)
+        and st_dwithin(sf.point::geography, s.point::geography, %(search_meters)s)
     ),
     reached as (
       select
         c.id,
         c.name,
         c.crop_type,
-        c.geometry,
+        c.point,
         1 as hops,
-        st_distance(c.geometry::geography, s.point::geography) / %(meters_per_mile)s
+        st_distance(c.point::geography, s.point::geography) / %(meters_per_mile)s
           as trigger_distance_miles,
-        st_distance(c.geometry::geography, s.point::geography) / %(meters_per_mile)s
+        st_distance(c.point::geography, s.point::geography) / %(meters_per_mile)s
           as source_distance_miles,
         array[c.id] as path
       from candidates c
       cross join source s
-      where st_dwithin(c.geometry::geography, s.point::geography, %(hop_meters)s)
+      where st_dwithin(c.point::geography, s.point::geography, %(hop_meters)s)
 
       union all
 
@@ -72,19 +84,19 @@ def calculate_boundary_adjacency_alerts(
         next_field.id,
         next_field.name,
         next_field.crop_type,
-        next_field.geometry,
+        next_field.point,
         reached.hops + 1 as hops,
-        st_distance(next_field.geometry::geography, reached.geometry::geography) / %(meters_per_mile)s
+        st_distance(next_field.point::geography, reached.point::geography) / %(meters_per_mile)s
           as trigger_distance_miles,
-        st_distance(next_field.geometry::geography, s.point::geography) / %(meters_per_mile)s
+        st_distance(next_field.point::geography, s.point::geography) / %(meters_per_mile)s
           as source_distance_miles,
         reached.path || next_field.id as path
       from reached
       cross join source s
       join candidates next_field
         on next_field.id <> all(reached.path)
-       and next_field.geometry && st_expand(reached.geometry, %(hop_degrees)s)
-       and st_dwithin(next_field.geometry::geography, reached.geometry::geography, %(hop_meters)s)
+       and next_field.point && st_expand(reached.point, %(hop_degrees)s)
+       and st_dwithin(next_field.point::geography, reached.point::geography, %(hop_meters)s)
       where reached.hops < %(max_hops)s
     ),
     best_reached as (
@@ -127,6 +139,7 @@ def calculate_boundary_adjacency_alerts(
             cur.execute(sql, params)
             rows = cur.fetchall()
 
+    logger.info("Boundary adjacency reached %s field(s)", len(rows))
     return [
         _build_alert(
             field_id=row[0],
@@ -137,6 +150,7 @@ def calculate_boundary_adjacency_alerts(
             source_distance=float(row[5]),
             source_crop_type=source.crop_type,
             confidence=confidence,
+            hop_distance_miles=hop_distance_miles,
         )
         for row in rows
     ]
@@ -146,7 +160,7 @@ def _field_scope_sql(reporter_user_id: str | None) -> str:
     if reporter_user_id:
         crop_type_sql = "ff.crop_type"
     else:
-        crop_type_sql = "coalesce(f.main_crop, 'unknown')"
+        crop_type_sql = "coalesce(nullif(f.main_crop_name, ''), f.main_crop, 'unknown')"
 
     crop_key_sql = f"""
     case
@@ -160,6 +174,22 @@ def _field_scope_sql(reporter_user_id: str | None) -> str:
     end
     """
 
+    point_sql = """
+    coalesce(
+      case
+        when f.label_point ? 'longitude' and f.label_point ? 'latitude'
+        then st_setsrid(
+          st_makepoint(
+            (f.label_point->>'longitude')::double precision,
+            (f.label_point->>'latitude')::double precision
+          ),
+          4326
+        )
+      end,
+      st_setsrid(st_pointonsurface(f.geometry), 4326)
+    )
+    """
+
     if reporter_user_id:
         return f"""
         select
@@ -167,24 +197,28 @@ def _field_scope_sql(reporter_user_id: str | None) -> str:
           coalesce(f.unique_id, 'field_' || f.id::text) as name,
           ff.crop_type,
           {crop_key_sql} as crop_key,
-          f.geometry
+          {point_sql} as point
         from public.farmer_fields ff
         join public.profiles p on p.id = ff.profile_id
         join public.fields f on f.id = ff.field_id
         where p.clerk_user_id = %(reporter_user_id)s
           and nullif(trim(ff.crop_type), '') is not null
-          and f.geometry is not null
+          and (
+            f.geometry is not null
+            or (f.label_point ? 'longitude' and f.label_point ? 'latitude')
+          )
         """
 
     return f"""
     select
       f.id,
       coalesce(f.unique_id, 'field_' || f.id::text) as name,
-      coalesce(f.main_crop, 'unknown') as crop_type,
+      coalesce(nullif(f.main_crop_name, ''), f.main_crop, 'unknown') as crop_type,
       {crop_key_sql} as crop_key,
-      f.geometry
+      {point_sql} as point
     from public.fields f
     where f.geometry is not null
+      or (f.label_point ? 'longitude' and f.label_point ? 'latitude')
     """
 
 
@@ -197,8 +231,10 @@ def _build_alert(
     source_distance: float,
     source_crop_type: str,
     confidence: float,
+    hop_distance_miles: float,
 ) -> FieldAlert:
-    hop_score = max(0, 1 - (trigger_distance / ADJACENCY_HOP_DISTANCE_MILES))
+    effective_hop_distance = max(hop_distance_miles, 0.001)
+    hop_score = max(0, 1 - (trigger_distance / effective_hop_distance))
     hop_penalty = 0.85 ** max(hops - 1, 0)
     adjacency_score = max(0.05, hop_score * hop_penalty)
     crop_bonus = 0.1 if _crop_key(crop_type) == _crop_key(source_crop_type) else 0

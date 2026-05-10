@@ -1,3 +1,4 @@
+import logging
 import re
 from dataclasses import dataclass
 from math import asin, atan2, cos, degrees, radians, sin, sqrt
@@ -15,7 +16,9 @@ from app.services.weather import get_current_weather
 
 EARTH_RADIUS_MILES = 3958.8
 DEFAULT_TRAVEL_DISTANCE_MILES = 1.0
-ADJACENCY_HOP_DISTANCE_MILES = 1.0
+ADJACENCY_HOP_DISTANCE_MILES = 2.0
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -26,6 +29,15 @@ class _AdjacencyMatch:
 
 
 def calculate_spread(request: SpreadRequest) -> SpreadResponse:
+    logger.info(
+        "Calculating spread pest=%s methods=%s fields=%s travel_distance=%s adjacency_hop_miles=%s",
+        request.analysis.pest_name,
+        [method.value for method in request.analysis.spread_methods],
+        len(request.fields),
+        request.analysis.travel_distance,
+        ADJACENCY_HOP_DISTANCE_MILES,
+    )
+
     weather = None
     if SpreadMethod.wind in request.analysis.spread_methods:
         weather = get_current_weather(
@@ -34,6 +46,8 @@ def calculate_spread(request: SpreadRequest) -> SpreadResponse:
         )
 
     adjacency_matches = _build_adjacency_matches(request)
+    if SpreadMethod.adjacency in request.analysis.spread_methods:
+        logger.info("Matched %s adjacency field(s)", len(adjacency_matches))
 
     alerts = [
         alert
@@ -50,6 +64,7 @@ def calculate_spread(request: SpreadRequest) -> SpreadResponse:
         is not None
     ]
     alerts.sort(key=lambda alert: alert.risk_score, reverse=True)
+    logger.info("Spread produced %s alert(s)", len(alerts))
 
     return SpreadResponse(
         pest_name=request.analysis.pest_name,
@@ -177,6 +192,11 @@ def _build_adjacency_matches(request: SpreadRequest) -> dict[str, _AdjacencyMatc
     frontier: list[tuple[float, float, int]] = [
         (request.source.longitude, request.source.latitude, 0)
     ]
+    logger.info(
+        "Building adjacency matches vulnerable_fields=%s hop_miles=%s",
+        len(unvisited),
+        ADJACENCY_HOP_DISTANCE_MILES,
+    )
 
     while frontier and unvisited:
         next_frontier: list[tuple[float, float, int]] = []

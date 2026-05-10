@@ -113,7 +113,7 @@ def _field_scope_sql(reporter_user_id: str | None) -> str:
     if reporter_user_id:
         crop_type_sql = "ff.crop_type"
     else:
-        crop_type_sql = "coalesce(f.main_crop, 'unknown')"
+        crop_type_sql = "coalesce(nullif(f.main_crop_name, ''), f.main_crop, 'unknown')"
 
     crop_key_sql = f"""
     case
@@ -164,7 +164,7 @@ def _field_scope_sql(reporter_user_id: str | None) -> str:
     select
       f.id,
       coalesce(f.unique_id, 'field_' || f.id::text) as name,
-      coalesce(f.main_crop, 'unknown') as crop_type,
+      coalesce(nullif(f.main_crop_name, ''), f.main_crop, 'unknown') as crop_type,
       {crop_key_sql} as crop_key,
       f.geometry,
       {point_sql} as point

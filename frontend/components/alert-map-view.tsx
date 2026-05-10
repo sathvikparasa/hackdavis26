@@ -18,6 +18,8 @@ const severityConfig: Record<AlertSeverity, { cardBg: string; accent: string }> 
 const MAP_DETAIL_SHEET_BOTTOM = 0;
 const LAYERS_BUTTON_BOTTOM = 28;
 const LAYERS_BUTTON_SHEET_GAP = 12;
+const FLOATING_CONTROL_GAP = 8;
+const FLOATING_CONTROL_SIZE = 52;
 const SHEET_HIDDEN_OFFSET = 260;
 const YOLO_VIEWPORT: WindViewport = {
   latitude: 38.6785,
@@ -37,6 +39,7 @@ type AlertMapViewProps = {
   centerButtonTop: number;
   crops: string[];
   error: string | null;
+  focusedFieldId: number | null;
   hasActiveFilters: boolean;
   headerTop: number;
   loading: boolean;
@@ -59,6 +62,7 @@ export function AlertMapView({
   centerButtonTop,
   crops,
   error,
+  focusedFieldId,
   hasActiveFilters,
   headerTop,
   loading,
@@ -80,7 +84,6 @@ export function AlertMapView({
   const [windViewport, setWindViewport] = useState(YOLO_VIEWPORT);
   const detailSheetSlide = useRef(new Animated.Value(SHEET_HIDDEN_OFFSET)).current;
   const searchInputRef = useRef<TextInput>(null);
-  const searchExpansion = useRef(new Animated.Value(0)).current;
   const wind = useWindData(windViewport);
   const trimmedQuery = query.trim().toLowerCase();
   const alertSuggestions = useMemo(
@@ -88,9 +91,10 @@ export function AlertMapView({
     [alerts, trimmedQuery.length]
   );
   const layersControlBottom =
-    selectedAlert && detailSheetHeight > 0
+    displayedAlert && detailSheetHeight > 0
       ? detailSheetHeight + LAYERS_BUTTON_SHEET_GAP
       : LAYERS_BUTTON_BOTTOM;
+  const filterControlBottom = layersControlBottom + FLOATING_CONTROL_SIZE + FLOATING_CONTROL_GAP;
 
   useEffect(() => {
     if (selectedAlert) {
@@ -114,14 +118,6 @@ export function AlertMapView({
     });
   }, [detailSheetHeight, detailSheetSlide, selectedAlert]);
 
-  useEffect(() => {
-    Animated.timing(searchExpansion, {
-      duration: 180,
-      toValue: searchExpanded ? 1 : 0,
-      useNativeDriver: false,
-    }).start();
-  }, [searchExpanded, searchExpansion]);
-
   const collapseSearch = () => {
     setSearchExpanded(false);
     searchInputRef.current?.blur();
@@ -142,6 +138,7 @@ export function AlertMapView({
         onSelect={onSelectAlert}
         onClearSelection={onClearSelection}
         focusedLocation={null}
+        focusedFieldId={focusedFieldId}
         centerButtonTop={centerButtonTop}
         layersControlBottom={layersControlBottom}
         onRegionChangeComplete={setWindViewport}
@@ -170,33 +167,6 @@ export function AlertMapView({
               onSubmitEditing={collapseSearch}
             />
           </View>
-          <Animated.View
-            pointerEvents={searchExpanded ? 'none' : 'auto'}
-            style={[
-              styles.filterButtonWrap,
-              {
-                marginLeft: searchExpansion.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [10, 0],
-                }),
-                opacity: searchExpansion.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [1, 0],
-                }),
-                width: searchExpansion.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [52, 0],
-                }),
-              },
-            ]}
-          >
-            <Pressable
-              style={[styles.filterButton, hasActiveFilters && styles.filterButtonActive]}
-              onPress={onOpenFilter}
-            >
-              <MaterialIcons name="tune" size={22} color={hasActiveFilters ? '#fff' : '#4b5563'} />
-            </Pressable>
-          </Animated.View>
         </View>
 
         {searchExpanded && trimmedQuery.length >= 2 ? (
@@ -244,6 +214,19 @@ export function AlertMapView({
         </View>
       </View>
 
+      <Pressable
+        accessibilityLabel="Open alert filters"
+        style={[
+          styles.filterButton,
+          styles.floatingFilterButton,
+          hasActiveFilters && styles.filterButtonActive,
+          { bottom: filterControlBottom },
+        ]}
+        onPress={onOpenFilter}
+      >
+        <MaterialIcons name="tune" size={22} color={hasActiveFilters ? '#fff' : '#4b5563'} />
+      </Pressable>
+
       {loading ? (
         <EmptyMapMessage title="Loading alerts" />
       ) : error ? (
@@ -257,6 +240,7 @@ export function AlertMapView({
       {displayedAlert ? (
         <MapDetailSheet
           alert={displayedAlert}
+          onClose={onClearSelection}
           onLayout={(event) => setDetailSheetHeight(event.nativeEvent.layout.height)}
           onOpenAlert={() => onOpenAlert(displayedAlert.id)}
           translateY={detailSheetSlide}
@@ -268,11 +252,13 @@ export function AlertMapView({
 
 function MapDetailSheet({
   alert,
+  onClose,
   onLayout,
   onOpenAlert,
   translateY,
 }: {
   alert: AlertItem;
+  onClose: () => void;
   onLayout: (event: LayoutChangeEvent) => void;
   onOpenAlert: () => void;
   translateY: Animated.Value;
@@ -305,6 +291,9 @@ function MapDetailSheet({
             {alert.vulnerableCropLabel}
           </Text>
         </View>
+        <Pressable accessibilityLabel="Close alert" style={styles.closeButton} onPress={onClose}>
+          <Text style={styles.closeButtonText}>×</Text>
+        </Pressable>
       </View>
 
       <View style={styles.mapMetaLine}>
@@ -460,13 +449,14 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     width: 52,
   },
-  filterButtonWrap: {
-    height: 52,
-    overflow: 'hidden',
-  },
   filterButtonActive: {
     backgroundColor: '#2d4a3e',
     borderColor: '#2d4a3e',
+  },
+  floatingFilterButton: {
+    position: 'absolute',
+    right: 16,
+    zIndex: 10,
   },
   searchBox: {
     alignItems: 'center',
@@ -542,6 +532,20 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.08,
     shadowRadius: 18,
+  },
+  closeButton: {
+    alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+    borderRadius: 16,
+    height: 32,
+    justifyContent: 'center',
+    width: 32,
+  },
+  closeButtonText: {
+    color: '#6b7280',
+    fontSize: 24,
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
+    lineHeight: 27,
   },
   alertSuggestionTitle: {
     color: '#111827',

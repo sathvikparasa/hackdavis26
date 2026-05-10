@@ -1,4 +1,6 @@
 import asyncio
+import logging
+import os
 from typing import Optional
 
 from fastapi import FastAPI, File, Form, UploadFile
@@ -24,6 +26,13 @@ from app.services.reports import recompute_farmer_field_alerts as recompute_farm
 from app.services.reports import repopulate_all_affected_fields as repopulate_all_affected_fields_service
 from app.services.spread import calculate_spread as calculate_spread_service
 
+
+_log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=_log_level,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
+logging.getLogger().setLevel(_log_level)
 
 app = FastAPI(title="YoloGuard API")
 

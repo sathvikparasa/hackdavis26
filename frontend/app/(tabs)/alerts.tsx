@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useAuth } from '@clerk/expo';
-import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Geometry } from 'geojson';
@@ -38,9 +38,12 @@ type FarmerFieldRow = {
 
 export default function AlertsScreen() {
   const { getToken, isSignedIn } = useAuth();
+  const params = useLocalSearchParams<{ alertId?: string; fieldId?: string; view?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { step, advance } = useTutorial();
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
 
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [alertMapFields, setAlertMapFields] = useState<AlertMapField[]>([]);
@@ -50,19 +53,24 @@ export default function AlertsScreen() {
   const [filters, setFilters] = useState(getFilterState);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedMapAlertId, setSelectedMapAlertId] = useState<string | null>(null);
+  const focusedFieldId = useMemo(() => {
+    const fieldId = Array.isArray(params.fieldId) ? params.fieldId[0] : params.fieldId;
+    const parsed = Number(fieldId);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [params.fieldId]);
 
   useEffect(() => subscribeFilterState(setFilters), []);
 
   const authenticatedSupabase = useMemo(
     () => createSupabaseWithAccessToken(async () => {
       try {
-        return await getToken();
+        return await getTokenRef.current();
       } catch (tokenError) {
         console.warn('Unable to load Clerk session token', tokenError);
         return null;
       }
     }),
-    [getToken]
+    []
   );
 
   const { crops, pests: pestTypes, severities } = filters;
@@ -73,7 +81,21 @@ export default function AlertsScreen() {
     try {
       setLoading(true);
       setError(null);
-      setAlerts(await fetchAlerts());
+      let affectedFieldIds: number[] = [];
+      if (isSignedIn) {
+        const { data, error: fieldsError } = await authenticatedSupabase
+          .from('farmer_fields')
+          .select('field_id')
+          .order('field_id', { ascending: true });
+
+        if (fieldsError) {
+          console.warn('Unable to load alert affected fields', fieldsError);
+        } else {
+          affectedFieldIds = ((data ?? []) as Pick<FarmerFieldRow, 'field_id'>[]).map((row) => row.field_id);
+        }
+      }
+
+      setAlerts(await fetchAlerts({ affectedFieldIds }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load alerts');
     } finally {
@@ -81,7 +103,18 @@ export default function AlertsScreen() {
     }
   }
 
-  useEffect(() => { loadAlerts(); }, []);
+  useEffect(() => { loadAlerts(); }, [authenticatedSupabase, isSignedIn]);
+
+  useEffect(() => {
+    const requestedView = Array.isArray(params.view) ? params.view[0] : params.view;
+    const requestedAlertId = Array.isArray(params.alertId) ? params.alertId[0] : params.alertId;
+    if (requestedView === 'map') {
+      setViewMode('map');
+    }
+    if (requestedAlertId) {
+      setSelectedMapAlertId(requestedAlertId);
+    }
+  }, [params.alertId, params.view]);
 
   useEffect(() => {
     let cancelled = false;
@@ -180,6 +213,7 @@ export default function AlertsScreen() {
           crops={crops}
           centerButtonTop={insets.top + 76}
           error={error}
+          focusedFieldId={focusedFieldId}
           hasActiveFilters={hasActiveFilters}
           headerTop={insets.top + 12}
           loading={loading}

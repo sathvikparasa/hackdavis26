@@ -196,8 +196,8 @@ function AlertCard({
           <Text style={styles.cropLabel}>{alert.vulnerableCropLabel}</Text>
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
-              <MaterialIcons name="place" size={12} color="#9ca3af" />
-              <Text style={styles.metaText} numberOfLines={1}>{alert.distance}</Text>
+              <MaterialIcons name="radio-button-unchecked" size={12} color="#9ca3af" />
+              <Text style={styles.metaText} numberOfLines={1}>{alert.travelDistance}</Text>
             </View>
             <Text style={styles.metaDot}>·</Text>
             <View style={styles.metaItem}>

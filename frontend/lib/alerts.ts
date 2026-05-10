@@ -55,6 +55,7 @@ type FieldRow = {
   id: number;
   unique_id: string | null;
   main_crop: string | null;
+  main_crop_name: string | null;
   county: string | null;
   acres: number | null;
   region: string | null;
@@ -92,7 +93,11 @@ const SUPABASE_PUBLISHABLE_KEY =
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
   process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-export async function fetchAlerts(): Promise<AlertItem[]> {
+type FetchAlertsOptions = {
+  affectedFieldIds?: Iterable<number> | null;
+};
+
+export async function fetchAlerts(options: FetchAlertsOptions = {}): Promise<AlertItem[]> {
   const reports = await supabaseGet<ReportRow[]>(
     '/rest/v1/reports?select=id,reporter_user_id,pest_name,latitude,longitude,confidence,travel_distance,spread_methods,vulnerable_crop,created_at,image_bucket,image_path&order=created_at.desc&limit=100'
   );
@@ -105,10 +110,22 @@ export async function fetchAlerts(): Promise<AlertItem[]> {
   const affectedFields = await supabaseGet<AffectedFieldRow[]>(
     `/rest/v1/affected_fields?select=report_id,field_id,risk_score,severity,distance,matched_methods,reasons&report_id=in.(${reportIds.join(',')})&order=risk_score.desc`
   );
+  const allowedAffectedFieldIds =
+    options.affectedFieldIds === null || options.affectedFieldIds === undefined
+      ? null
+      : new Set(options.affectedFieldIds);
+  const visibleAffectedFields =
+    allowedAffectedFieldIds === null
+      ? affectedFields
+      : affectedFields.filter(
+          (affectedField) =>
+            typeof affectedField.field_id === 'number' &&
+            allowedAffectedFieldIds.has(affectedField.field_id)
+        );
 
   const fieldIds = [
     ...new Set(
-      affectedFields
+      visibleAffectedFields
         .map((affectedField) => affectedField.field_id)
         .filter((fieldId): fieldId is number => typeof fieldId === 'number')
     ),
@@ -116,14 +133,14 @@ export async function fetchAlerts(): Promise<AlertItem[]> {
   const fields =
     fieldIds.length > 0
       ? await supabaseGet<FieldRow[]>(
-          `/rest/v1/fields?select=id,unique_id,main_crop,county,acres,region&id=in.(${fieldIds.join(',')})`
+          `/rest/v1/fields?select=id,unique_id,main_crop,main_crop_name,county,acres,region&id=in.(${fieldIds.join(',')})`
         )
       : [];
   const fieldsById = new Map(fields.map((field) => [field.id, field]));
 
   const topAffectedByReport = new Map<string, AffectedFieldRow>();
   const affectedByReport = new Map<string, AffectedField[]>();
-  for (const affectedField of affectedFields) {
+  for (const affectedField of visibleAffectedFields) {
     if (!topAffectedByReport.has(affectedField.report_id)) {
       topAffectedByReport.set(affectedField.report_id, affectedField);
     }
@@ -197,8 +214,8 @@ export async function fetchAlerts(): Promise<AlertItem[]> {
 }
 
 
-export async function fetchAlertById(id: string): Promise<AlertItem | null> {
-  const alerts = await fetchAlerts();
+export async function fetchAlertById(id: string, options: FetchAlertsOptions = {}): Promise<AlertItem | null> {
+  const alerts = await fetchAlerts(options);
   return alerts.find((alert) => alert.id === id) ?? null;
 }
 
@@ -255,7 +272,7 @@ function mapAffectedField(affectedField: AffectedFieldRow, field?: FieldRow): Af
   return {
     fieldId: affectedField.field_id,
     fieldName: field?.unique_id || field?.region || `Field ${affectedField.field_id ?? 'unknown'}`,
-    crop: titleCase(field?.main_crop || 'Unknown crop'),
+    crop: titleCase(field?.main_crop_name || field?.main_crop || 'Unknown crop'),
     county: field?.county ?? null,
     acres: field?.acres ?? null,
     riskScore: affectedField.risk_score,

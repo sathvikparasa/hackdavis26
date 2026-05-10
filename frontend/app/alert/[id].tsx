@@ -1,7 +1,8 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useAuth } from '@clerk/expo';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   PanResponder,
@@ -19,6 +20,7 @@ import {
   VulnerableCrop,
   fetchAlertById,
 } from '@/lib/alerts';
+import { createSupabaseWithAccessToken } from '@/lib/supabase';
 import { useTutorial } from '@/lib/tutorial';
 
 const severityStyles: Record<AlertSeverity, { pin: string; tint: string; text: string }> = {
@@ -30,11 +32,26 @@ const severityStyles: Record<AlertSeverity, { pin: string; tint: string; text: s
 export default function AlertDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { getToken, isSignedIn } = useAuth();
   const { step, advance } = useTutorial();
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
   const [alert, setAlert] = useState<AlertItem | null>(null);
   const [selectedCropIndex, setSelectedCropIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const authenticatedSupabase = useMemo(
+    () =>
+      createSupabaseWithAccessToken(async () => {
+        try {
+          return await getTokenRef.current();
+        } catch (tokenError) {
+          console.warn('Unable to load Clerk session token', tokenError);
+          return null;
+        }
+      }),
+    []
+  );
 
   const loadAlert = useCallback(async () => {
     if (!id) {
@@ -46,7 +63,21 @@ export default function AlertDetailScreen() {
     try {
       setLoading(true);
       setError(null);
-      const nextAlert = await fetchAlertById(id);
+      let affectedFieldIds: number[] = [];
+      if (isSignedIn) {
+        const { data, error: fieldsError } = await authenticatedSupabase
+          .from('farmer_fields')
+          .select('field_id')
+          .order('field_id', { ascending: true });
+
+        if (fieldsError) {
+          console.warn('Unable to load alert affected fields', fieldsError);
+        } else {
+          affectedFieldIds = ((data ?? []) as { field_id: number }[]).map((row) => row.field_id);
+        }
+      }
+
+      const nextAlert = await fetchAlertById(id, { affectedFieldIds });
       setAlert(nextAlert);
       setSelectedCropIndex(0);
       if (!nextAlert) {
@@ -57,7 +88,7 @@ export default function AlertDetailScreen() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [authenticatedSupabase, id, isSignedIn]);
 
   useEffect(() => {
     loadAlert();
@@ -71,6 +102,22 @@ export default function AlertDetailScreen() {
         ? alert.vulnerableCropNames.join(', ')
         : alert?.vulnerableCropLabel ?? 'Unknown vulnerable crops',
     [alert]
+  );
+  const openAffectedFieldOnMap = useCallback(
+    (field: AffectedField) => {
+      if (step === 5) {
+        advance();
+      }
+      router.push({
+        pathname: '/(tabs)/alerts',
+        params: {
+          alertId: alert?.id,
+          fieldId: field.fieldId ? String(field.fieldId) : undefined,
+          view: 'map',
+        },
+      });
+    },
+    [advance, alert?.id, router, step]
   );
 
   return (
@@ -159,7 +206,7 @@ export default function AlertDetailScreen() {
                   <AffectedFieldRow
                     key={`${field.fieldId}-${field.fieldName}`}
                     field={field}
-                    onPress={step === 5 ? () => advance() : undefined}
+                    onPress={() => openAffectedFieldOnMap(field)}
                   />
                 ))
               ) : (
@@ -311,32 +358,35 @@ function ImpactBlock({ impact }: { impact: VulnerableCrop }) {
 
 function AffectedFieldRow({ field, onPress }: { field: AffectedField; onPress?: () => void }) {
   const colors = severityStyles[field.severity];
+  const fieldMeta = [
+    field.distanceMiles !== null ? formatMiles(field.distanceMiles) : null,
+    field.riskScore !== null ? `${formatPercent(field.riskScore)} risk` : null,
+  ].filter(Boolean).join(' · ');
 
   return (
     <Pressable style={styles.fieldRow} onPress={onPress} disabled={!onPress}>
       <View style={[styles.fieldIcon, { backgroundColor: colors.tint }]}>
-        <MaterialIcons name="place" size={18} color={colors.pin} />
+        <MaterialIcons name="grass" size={18} color={colors.pin} />
       </View>
       <View style={styles.fieldCopy}>
         <View style={styles.fieldTitleRow}>
           <Text style={styles.fieldTitle} numberOfLines={1}>
-            {field.fieldName}
+            {field.crop}
           </Text>
           <Text style={[styles.fieldSeverity, { color: colors.text }]}>
             {field.severity}
           </Text>
         </View>
-        <Text style={styles.fieldMeta}>
-          {field.crop}
-          {field.distanceMiles !== null ? ` · ${formatMiles(field.distanceMiles)}` : ''}
-          {field.riskScore !== null ? ` · ${formatPercent(field.riskScore)} risk` : ''}
-        </Text>
+        {fieldMeta ? <Text style={styles.fieldMeta}>{fieldMeta}</Text> : null}
         {field.reasons.length > 0 ? (
           <Text style={styles.fieldReason} numberOfLines={2}>
             {field.reasons.join(' · ')}
           </Text>
         ) : null}
       </View>
+      {onPress ? (
+        <MaterialIcons name="chevron-right" size={22} color="#9ca3af" style={styles.fieldChevron} />
+      ) : null}
     </Pressable>
   );
 }
@@ -598,6 +648,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     flexDirection: 'row',
     gap: 12,
+  },
+  fieldChevron: {
+    marginTop: 6,
   },
   fieldIcon: {
     alignItems: 'center',

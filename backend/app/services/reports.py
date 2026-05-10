@@ -13,13 +13,13 @@ from app.models import (
     SpreadSource,
 )
 from app.services.analysis import analyze_report
-from app.services.boundary_adjacency import calculate_boundary_adjacency_alerts
 from app.services.fields import get_candidate_farmer_fields, get_candidate_fields
 from app.services.irrigation import calculate_irrigation_alerts
 from app.services.push_notifications import notify_affected_field_owners
 from app.services.report_db import (
     delete_all_affected_fields,
     delete_affected_fields_for_fields,
+    list_farmer_field_owner_user_ids,
     insert_report,
     list_reports_for_recompute,
     upsert_affected_fields,
@@ -104,10 +104,19 @@ def recompute_farmer_field_alerts(
     if field_id is not None:
         filtered_field_ids.add(field_id)
 
+    logger.info(
+        "Starting farmer field alert recompute reporter_user_id=%s filtered_field_ids=%s send_notifications=%s",
+        reporter_user_id,
+        sorted(filtered_field_ids) or None,
+        send_notifications,
+    )
+
     if filtered_field_ids:
         delete_affected_fields_for_fields(filtered_field_ids)
+        logger.info("Deleted affected fields for field_ids=%s", sorted(filtered_field_ids))
 
     reports = list_reports_for_recompute()
+    logger.info("Loaded %s report(s) for farmer field recompute", len(reports))
     reports_with_alerts = 0
     affected_fields_upserted = 0
 
@@ -125,15 +134,22 @@ def recompute_farmer_field_alerts(
             if not filtered_field_ids or int(alert.field_id) in filtered_field_ids
         ]
         if not matching_alerts:
+            logger.info("Report %s produced no matching farmer field alert(s)", report.id)
             continue
 
         filtered_spread = SpreadResponse(pest_name=spread.pest_name, alerts=matching_alerts)
-        affected_fields_upserted += upsert_affected_fields(
+        upserted_count = upsert_affected_fields(
             report_id=report.id,
             spread=filtered_spread,
             field_ids=filtered_field_ids or None,
         )
+        affected_fields_upserted += upserted_count
         reports_with_alerts += 1
+        logger.info(
+            "Report %s upserted %s affected farmer field(s)",
+            report.id,
+            upserted_count,
+        )
 
         if send_notifications:
             try:
@@ -146,6 +162,13 @@ def recompute_farmer_field_alerts(
             except Exception as error:
                 logger.warning("Unable to send recomputed push notifications: %s", error)
 
+    logger.info(
+        "Finished farmer field alert recompute reports_checked=%s reports_with_alerts=%s upserted=%s",
+        len(reports),
+        reports_with_alerts,
+        affected_fields_upserted,
+    )
+
     return RecomputeFarmerFieldsResponse(
         reporter_user_id=reporter_user_id,
         field_id=field_id,
@@ -157,27 +180,63 @@ def recompute_farmer_field_alerts(
 
 
 def repopulate_all_affected_fields() -> RecomputeAllAffectedFieldsResponse:
+    logger.info("Starting full affected fields repopulation")
     deleted_count = delete_all_affected_fields()
+    logger.info("Deleted %s existing affected field row(s)", deleted_count)
     reports = list_reports_for_recompute()
+    logger.info("Loaded %s report(s) for full affected fields repopulation", len(reports))
+    farmer_user_ids = list_farmer_field_owner_user_ids()
+    logger.info(
+        "Loaded %s farmer field owner(s) for full affected fields repopulation",
+        len(farmer_user_ids),
+    )
     reports_with_alerts = 0
     affected_fields_upserted = 0
 
     for report in reports:
-        spread = calculate_report_spread(
-            analysis=report.analysis,
-            crop_type=report.crop_type,
-            latitude=report.latitude,
-            longitude=report.longitude,
-            reporter_user_id=None,
-        )
-        if not spread.alerts:
+        report_upserted_count = 0
+        for farmer_user_id in farmer_user_ids:
+            spread = calculate_report_spread(
+                analysis=report.analysis,
+                crop_type=report.crop_type,
+                latitude=report.latitude,
+                longitude=report.longitude,
+                reporter_user_id=farmer_user_id,
+            )
+            if not spread.alerts:
+                continue
+
+            upserted_count = upsert_affected_fields(
+                report_id=report.id,
+                spread=spread,
+            )
+            report_upserted_count += upserted_count
+            affected_fields_upserted += upserted_count
+            logger.info(
+                "Report %s upserted %s affected field(s) for farmer_user_id=%s",
+                report.id,
+                upserted_count,
+                farmer_user_id,
+            )
+
+        if report_upserted_count == 0:
+            logger.info("Report %s produced no affected field alert(s)", report.id)
             continue
 
-        affected_fields_upserted += upsert_affected_fields(
-            report_id=report.id,
-            spread=spread,
-        )
         reports_with_alerts += 1
+        logger.info(
+            "Report %s upserted %s total affected farmer field(s)",
+            report.id,
+            report_upserted_count,
+        )
+
+    logger.info(
+        "Finished full affected fields repopulation reports_checked=%s reports_with_alerts=%s deleted=%s upserted=%s",
+        len(reports),
+        reports_with_alerts,
+        deleted_count,
+        affected_fields_upserted,
+    )
 
     return RecomputeAllAffectedFieldsResponse(
         reports_checked=len(reports),
@@ -199,6 +258,14 @@ def calculate_report_spread(
         analysis.travel_distance,
         settings.candidate_field_radius_miles,
     )
+    logger.info(
+        "Calculating report spread pest=%s crop=%s methods=%s radius_miles=%s reporter_scoped=%s",
+        analysis.pest_name,
+        crop_type,
+        [method.value for method in analysis.spread_methods],
+        radius_miles,
+        bool(reporter_user_id),
+    )
     if reporter_user_id:
         fields = get_candidate_farmer_fields(
             reporter_user_id=reporter_user_id,
@@ -213,6 +280,7 @@ def calculate_report_spread(
             radius_miles=radius_miles,
         )
 
+    logger.info("Loaded %s candidate field(s) for report spread", len(fields))
     spread_source = SpreadSource(
         latitude=latitude,
         longitude=longitude,
@@ -233,7 +301,7 @@ def calculate_report_spread(
                 spread_methods=[
                     method
                     for method in analysis.spread_methods
-                    if method not in {SpreadMethod.adjacency, SpreadMethod.water}
+                    if method != SpreadMethod.water
                 ],
                 vulnerable_crop=spread_analysis.vulnerable_crop,
                 travel_distance=spread_analysis.travel_distance,
@@ -243,17 +311,13 @@ def calculate_report_spread(
             fields=fields,
         )
     )
+    logger.info("Point spread produced %s alert(s)", len(point_spread.alerts))
+    adjacency_alerts = []
     if SpreadMethod.adjacency in analysis.spread_methods:
-        adjacency_alerts = calculate_boundary_adjacency_alerts(
-            source=spread_source,
-            vulnerable_crop=analysis.vulnerable_crop,
-            confidence=analysis.confidence,
-            search_radius_miles=radius_miles,
-            hop_distance_miles=ADJACENCY_HOP_DISTANCE_MILES,
-            reporter_user_id=reporter_user_id,
+        logger.info(
+            "Adjacency spread used center-based candidate fields with hop_miles=%s",
+            ADJACENCY_HOP_DISTANCE_MILES,
         )
-    else:
-        adjacency_alerts = []
 
     if SpreadMethod.water in analysis.spread_methods:
         irrigation_alerts = calculate_irrigation_alerts(
@@ -265,10 +329,13 @@ def calculate_report_spread(
         )
     else:
         irrigation_alerts = []
+    logger.info("Irrigation spread produced %s alert(s)", len(irrigation_alerts))
 
+    merged_alerts = _merge_alerts(point_spread.alerts, adjacency_alerts, irrigation_alerts)
+    logger.info("Merged report spread produced %s alert(s)", len(merged_alerts))
     return SpreadResponse(
         pest_name=point_spread.pest_name,
-        alerts=_merge_alerts(point_spread.alerts, adjacency_alerts, irrigation_alerts),
+        alerts=merged_alerts,
     )
 
 
