@@ -38,8 +38,8 @@ function useFloatAnim() {
 const DIGIT_COUNT = 6
 
 export default function SignInScreen() {
-  const { signIn, fetchStatus: signInStatus } = useSignIn()
-  const { signUp, fetchStatus: signUpStatus } = useSignUp()
+  const { signIn, setActive: setSignInActive, isLoaded: signInLoaded } = useSignIn()
+  const { signUp, setActive: setSignUpActive, isLoaded: signUpLoaded } = useSignUp()
   const router = useRouter()
   const floatY = useFloatAnim()
 
@@ -48,45 +48,65 @@ export default function SignInScreen() {
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [error, setError] = React.useState('')
+  const [isBusy, setIsBusy] = React.useState(false)
   const [pendingVerification, setPendingVerification] = React.useState(false)
   const [digits, setDigits] = React.useState<string[]>(Array(DIGIT_COUNT).fill(''))
   const inputRefs = React.useRef<(TextInput | null)[]>(Array(DIGIT_COUNT).fill(null))
 
-  const isBusy = signInStatus === 'fetching' || signUpStatus === 'fetching'
   const code = digits.join('')
 
   const handleSignIn = async () => {
+    if (!signInLoaded || !signIn) return
     setError('')
-    const { error: err } = await signIn.password({ emailAddress: email, password })
-    if (err) { setError(err.message ?? 'Sign in failed'); return }
-    if (signIn.status === 'complete') {
-      await signIn.finalize({
-        navigate: ({ decorateUrl }) => router.replace(decorateUrl('/(tabs)') as Href),
-      })
+    setIsBusy(true)
+    try {
+      const result = await signIn.create({ strategy: 'password', identifier: email, password })
+      if (result.status === 'complete') {
+        await setSignInActive({ session: result.createdSessionId })
+        router.replace('/(tabs)' as Href)
+      } else {
+        setError('Sign in incomplete. Please try again.')
+      }
+    } catch (err: any) {
+      setError(err.errors?.[0]?.message ?? err.message ?? 'Sign in failed')
+    } finally {
+      setIsBusy(false)
     }
   }
 
   const handleSignUp = async () => {
+    if (!signUpLoaded || !signUp) return
     setError('')
-    const { error: err } = await signUp.password({ emailAddress: email, password })
-    if (err) { setError(err.message ?? 'Sign up failed'); return }
-    await signUp.verifications.sendEmailCode()
-    setPendingVerification(true)
+    setIsBusy(true)
+    try {
+      await signUp.create({ strategy: 'password', emailAddress: email, password })
+      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' })
+      setPendingVerification(true)
+    } catch (err: any) {
+      setError(err.errors?.[0]?.message ?? err.message ?? 'Sign up failed')
+    } finally {
+      setIsBusy(false)
+    }
   }
 
   const handleVerify = async () => {
+    if (!signUpLoaded || !signUp) return
     setError('')
-    await signUp.verifications.verifyEmailCode({ code })
-    if (signUp.status === 'complete') {
-      await signUp.finalize({
-        navigate: async ({ session, decorateUrl }) => {
-          const clerkId = session?.user?.id ?? ''
-          if (clerkId) await upsertProfile(clerkId, email, name || undefined).catch(console.error)
-          router.replace(decorateUrl('/(tabs)') as Href)
-        },
-      })
-    } else {
-      setError('Verification failed. Check your code and try again.')
+    setIsBusy(true)
+    try {
+      const result = await signUp.attemptEmailAddressVerification({ code })
+      if (result.status === 'complete') {
+        const clerkId = result.createdUserId ?? ''
+        if (clerkId) await upsertProfile(clerkId, email, name || undefined).catch(console.error)
+        await setSignUpActive({ session: result.createdSessionId })
+        router.replace('/(tabs)' as Href)
+      } else {
+        setError('Verification failed. Check your code and try again.')
+      }
+    } catch (err: any) {
+      setError(err.errors?.[0]?.message ?? err.message ?? 'Verification failed')
+    } finally {
+      setIsBusy(false)
     }
   }
 
@@ -143,7 +163,7 @@ export default function SignInScreen() {
               <Text style={styles.buttonText}>{isBusy ? 'Verifying…' : 'Verify'}</Text>
             </Pressable>
 
-            <Pressable onPress={() => signUp.verifications.sendEmailCode()}>
+            <Pressable onPress={() => signUp?.prepareEmailAddressVerification({ strategy: 'email_code' })}>
               <Text style={styles.linkAction}>Resend code</Text>
             </Pressable>
           </View>
