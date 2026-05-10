@@ -38,8 +38,8 @@ function useFloatAnim() {
 const DIGIT_COUNT = 6
 
 export default function SignInScreen() {
-  const { signIn, setActive: setSignInActive, isLoaded: signInLoaded } = useSignIn()
-  const { signUp, setActive: setSignUpActive, isLoaded: signUpLoaded } = useSignUp()
+  const { signIn, fetchStatus: signInStatus } = useSignIn()
+  const { signUp, fetchStatus: signUpStatus } = useSignUp()
   const router = useRouter()
   const floatY = useFloatAnim()
 
@@ -48,65 +48,45 @@ export default function SignInScreen() {
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [error, setError] = React.useState('')
-  const [isBusy, setIsBusy] = React.useState(false)
   const [pendingVerification, setPendingVerification] = React.useState(false)
   const [digits, setDigits] = React.useState<string[]>(Array(DIGIT_COUNT).fill(''))
   const inputRefs = React.useRef<(TextInput | null)[]>(Array(DIGIT_COUNT).fill(null))
 
+  const isBusy = signInStatus === 'fetching' || signUpStatus === 'fetching'
   const code = digits.join('')
 
   const handleSignIn = async () => {
-    if (!signInLoaded || !signIn) return
     setError('')
-    setIsBusy(true)
-    try {
-      const result = await signIn.create({ strategy: 'password', identifier: email, password })
-      if (result.status === 'complete') {
-        await setSignInActive({ session: result.createdSessionId })
-        router.replace('/(tabs)' as Href)
-      } else {
-        setError('Sign in incomplete. Please try again.')
-      }
-    } catch (err: any) {
-      setError(err.errors?.[0]?.message ?? err.message ?? 'Sign in failed')
-    } finally {
-      setIsBusy(false)
+    const { error: err } = await signIn.password({ emailAddress: email, password })
+    if (err) { setError(err.message ?? 'Sign in failed'); return }
+    if (signIn.status === 'complete') {
+      await signIn.finalize({
+        navigate: ({ decorateUrl }) => router.replace(decorateUrl('/(tabs)') as Href),
+      })
     }
   }
 
   const handleSignUp = async () => {
-    if (!signUpLoaded || !signUp) return
     setError('')
-    setIsBusy(true)
-    try {
-      await signUp.create({ strategy: 'password', emailAddress: email, password })
-      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' })
-      setPendingVerification(true)
-    } catch (err: any) {
-      setError(err.errors?.[0]?.message ?? err.message ?? 'Sign up failed')
-    } finally {
-      setIsBusy(false)
-    }
+    const { error: err } = await signUp.password({ emailAddress: email, password })
+    if (err) { setError(err.message ?? 'Sign up failed'); return }
+    await signUp.verifications.sendEmailCode()
+    setPendingVerification(true)
   }
 
   const handleVerify = async () => {
-    if (!signUpLoaded || !signUp) return
     setError('')
-    setIsBusy(true)
-    try {
-      const result = await signUp.attemptEmailAddressVerification({ code })
-      if (result.status === 'complete') {
-        const clerkId = result.createdUserId ?? ''
-        if (clerkId) await upsertProfile(clerkId, email, name || undefined).catch(console.error)
-        await setSignUpActive({ session: result.createdSessionId })
-        router.replace('/(tabs)' as Href)
-      } else {
-        setError('Verification failed. Check your code and try again.')
-      }
-    } catch (err: any) {
-      setError(err.errors?.[0]?.message ?? err.message ?? 'Verification failed')
-    } finally {
-      setIsBusy(false)
+    await signUp.verifications.verifyEmailCode({ code })
+    if (signUp.status === 'complete') {
+      await signUp.finalize({
+        navigate: async ({ session, decorateUrl }) => {
+          const clerkId = session?.user?.id ?? ''
+          if (clerkId) await upsertProfile(clerkId, email, name || undefined).catch(console.error)
+          router.replace(decorateUrl('/(tabs)') as Href)
+        },
+      })
+    } else {
+      setError('Verification failed. Check your code and try again.')
     }
   }
 
@@ -163,8 +143,8 @@ export default function SignInScreen() {
               <Text style={styles.buttonText}>{isBusy ? 'Verifying…' : 'Verify'}</Text>
             </Pressable>
 
-            <Pressable onPress={() => signUp?.prepareEmailAddressVerification({ strategy: 'email_code' })}>
-              <Text style={styles.linkAction}>Resend code</Text>
+            <Pressable onPress={() => signUp.verifications.sendEmailCode()}>
+              <Text style={styles.link}>Resend code</Text>
             </Pressable>
           </View>
         </ScrollView>
@@ -182,8 +162,8 @@ export default function SignInScreen() {
         </Animated.View>
 
         <View style={styles.headerSection}>
-          <Text style={styles.heading}>{mode === 'signIn' ? 'Sign In' : 'Sign Up'}</Text>
-          <Text style={styles.subheading}>{mode === 'signIn' ? '' : ''}</Text>
+          <Text style={styles.heading}>{mode === 'signIn' ? 'Welcome back!' : 'Create Account'}</Text>
+          <Text style={styles.subheading}>{mode === 'signIn' ? 'Sign in to continue' : 'Sign up to get started'}</Text>
         </View>
 
         <View style={styles.form}>
@@ -239,9 +219,8 @@ export default function SignInScreen() {
         </View>
 
         <Pressable onPress={() => { setMode(mode === 'signIn' ? 'signUp' : 'signIn'); setError('') }}>
-          <Text style={styles.linkBase}>
-            {mode === 'signIn' ? "Don't have an account? " : 'Already have an account? '}
-            <Text style={styles.linkAction}>{mode === 'signIn' ? 'Sign up' : 'Sign in'}</Text>
+          <Text style={styles.link}>
+            {mode === 'signIn' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
           </Text>
         </Pressable>
 
@@ -324,16 +303,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
   },
-  linkBase: {
-    color: '#111827',
+  link: {
     fontFamily: 'Outfit_400Regular', fontWeight: '400',
     fontSize: 14,
     textAlign: 'center',
     marginTop: 4,
-  },
-  linkAction: {
-    color: '#71897b',
-    fontFamily: 'Outfit_600SemiBold', fontWeight: '600',
+    color: '#111827',
   },
   error: { color: '#d32f2f', fontSize: 13 },
   mfaContent: {
