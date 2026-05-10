@@ -3,6 +3,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { CameraType, CameraView, FlashMode, useCameraPermissions } from 'expo-camera';
 import { ImageBackground } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import {
@@ -14,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ReportScreen() {
+  const router = useRouter();
   const isFocused = useIsFocused();
   const cameraRef = useRef<CameraView>(null);
   const zoomStartRef = useRef(0);
@@ -27,6 +29,9 @@ export default function ReportScreen() {
 
   function setReportImage(uri: string | null) {
     setSelectedImageUri(uri);
+    if (uri) {
+      router.push({ pathname: '/analyzing', params: { imageUri: uri } });
+    }
   }
 
   async function takePhoto() {

@@ -1,11 +1,13 @@
 import { useAuth, useUser } from '@clerk/expo';
-import Constants from 'expo-constants';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { useEffect, useMemo, useRef } from 'react';
 import { Platform } from 'react-native';
 
 import { createSupabaseWithAccessToken } from '@/lib/supabase';
+
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -109,7 +111,7 @@ export function PushNotificationsBootstrap() {
 }
 
 async function registerForPushNotificationsAsync() {
-  if (Platform.OS === 'web') {
+  if (Platform.OS === 'web' || isExpoGo) {
     return null;
   }
 
