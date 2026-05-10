@@ -1,0 +1,147 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Custom Irrigation District Simulation</title>
+  <style>
+    :root { color-scheme: light; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      color: #0f172a;
+      background: #eef6f3;
+    }
+    main { padding: 34px; max-width: 1500px; margin: 0 auto; }
+    h1 { font-size: 34px; line-height: 1.05; margin: 0 0 8px; letter-spacing: 0; }
+    .subtitle { margin: 0 0 22px; color: #475569; font-size: 17px; max-width: 880px; }
+    .wrap { display: grid; grid-template-columns: minmax(0, 1fr) 410px; gap: 22px; align-items: start; }
+    .map-card, .panel {
+      background: rgba(255,255,255,0.9);
+      border: 1px solid rgba(148,163,184,0.35);
+      border-radius: 18px;
+      box-shadow: 0 20px 45px rgba(15,23,42,0.12);
+      overflow: hidden;
+    }
+    svg { width: 100%; height: auto; display: block; background: #ecfeff; }
+    .panel { padding: 20px; }
+    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+    .metric { border: 1px solid #dbeafe; border-radius: 12px; padding: 11px; background: #f8fafc; }
+    .metric strong { display: block; font-size: 11px; text-transform: uppercase; color: #64748b; letter-spacing: .08em; }
+    .metric span { display: block; margin-top: 5px; font-size: 22px; font-weight: 850; color: #0f172a; }
+    .panel h2 { font-size: 15px; margin: 16px 0 8px; color: #334155; }
+    ul { padding-left: 18px; margin: 0; color: #334155; line-height: 1.42; }
+    li { margin: 7px 0; }
+    details { margin-top: 18px; }
+    summary { cursor: pointer; color: #2563eb; font-weight: 700; }
+    pre { white-space: pre-wrap; background: #0f172a; color: #e2e8f0; padding: 14px; border-radius: 12px; font-size: 12px; max-height: 290px; overflow: auto; }
+    .legend { display: flex; flex-wrap: wrap; gap: 10px 16px; margin: 10px 0 20px; font-size: 14px; color: #334155; }
+    .swatch { display: inline-block; width: 16px; height: 16px; margin-right: 7px; vertical-align: -3px; border: 1px solid #64748b; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Custom Irrigation District Simulation</h1>
+    <p class="subtitle">Irrigation water spread alerts same-crop fields in the shared district and weights risk by distance from the report location.</p>
+    <div class="legend"><span><span class="swatch" style="background:#0e7490"></span>water alert in same district</span><span><span class="swatch" style="background:#e5e7eb; border-style:dashed"></span>same crop outside district</span><span><span class="swatch" style="background:#fde68a"></span>unaffected crop</span><span><span class="swatch" style="background:#cffafe; border-color:#0891b2"></span>irrigation district</span><span><span class="swatch" style="background:#ef4444"></span>report location</span></div>
+    <div class="wrap">
+      <section class="map-card">
+        <svg viewBox="0 0 1100 720">
+          <defs><linearGradient id="fieldGradient" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#60a5fa" /><stop offset="100%" stop-color="#1d4ed8" /></linearGradient><linearGradient id="waterGradient" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#67e8f9" /><stop offset="100%" stop-color="#0e7490" /></linearGradient><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#1d4ed8" /></marker></defs><rect x="18" y="18" width="1064" height="684" rx="26" fill="#ffffff" stroke="#dbeafe" stroke-width="2" /><path d="M70 628 C240 568 345 674 514 610 C687 545 755 641 1010 574" fill="none" stroke="#e0f2fe" stroke-width="42" stroke-linecap="round" opacity="0.9" /><rect x="92.0" y="103.13688212927752" width="783.6501901140684" height="513.726235741445" rx="24" fill="#cffafe" fill-opacity="0.64" stroke="#0891b2" stroke-width="3" /><text x="110.0" y="133.1" font-size="17" font-weight="800" fill="#155e75">Shared irrigation district</text><circle cx="222.6" cy="442.7" r="696.6" fill="#06b6d4" fill-opacity="0.045" stroke="#06b6d4" stroke-width="2" stroke-dasharray="10 9" /><rect x="194.7" y="414.9" width="55.7" height="55.7" rx="6" fill="url(#waterGradient)" stroke="#0e7490" stroke-width="2.5"  filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" /><text x="222.6" y="447.7" font-size="15" font-weight="900" text-anchor="middle" fill="#0f172a">A</text><text x="222.6" y="486.6" font-size="11" text-anchor="middle" fill="#374151">almonds</text><rect x="302.7" y="414.9" width="55.7" height="55.7" rx="6" fill="url(#waterGradient)" stroke="#0e7490" stroke-width="2.5"  filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" /><text x="330.6" y="447.7" font-size="15" font-weight="900" text-anchor="middle" fill="#0f172a">B</text><text x="330.6" y="486.6" font-size="11" text-anchor="middle" fill="#374151">almonds</text><rect x="410.7" y="411.4" width="55.7" height="55.7" rx="6" fill="url(#waterGradient)" stroke="#0e7490" stroke-width="2.5"  filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" /><text x="438.5" y="444.2" font-size="15" font-weight="900" text-anchor="middle" fill="#0f172a">C</text><text x="438.5" y="483.1" font-size="11" text-anchor="middle" fill="#374151">almonds</text><rect x="518.7" y="418.3" width="55.7" height="55.7" rx="6" fill="url(#waterGradient)" stroke="#0e7490" stroke-width="2.5"  filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" /><text x="546.5" y="451.2" font-size="15" font-weight="900" text-anchor="middle" fill="#0f172a">D</text><text x="546.5" y="490.1" font-size="11" text-anchor="middle" fill="#374151">almonds</text><rect x="626.6" y="411.4" width="55.7" height="55.7" rx="6" fill="url(#waterGradient)" stroke="#0e7490" stroke-width="2.5"  filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" /><text x="654.5" y="444.2" font-size="15" font-weight="900" text-anchor="middle" fill="#0f172a">E</text><text x="654.5" y="483.1" font-size="11" text-anchor="middle" fill="#374151">almonds</text><rect x="410.7" y="306.9" width="55.7" height="55.7" rx="6" fill="#fde68a" stroke="#b45309" stroke-width="2.5"  filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" /><text x="438.5" y="339.7" font-size="15" font-weight="900" text-anchor="middle" fill="#0f172a">F</text><text x="438.5" y="378.6" font-size="11" text-anchor="middle" fill="#374151">corn</text><rect x="795.5" y="414.9" width="55.7" height="55.7" rx="6" fill="url(#waterGradient)" stroke="#0e7490" stroke-width="2.5"  filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" /><text x="823.4" y="447.7" font-size="15" font-weight="900" text-anchor="middle" fill="#0f172a">G</text><text x="823.4" y="486.6" font-size="11" text-anchor="middle" fill="#374151">almonds</text><rect x="281.8" y="289.5" width="55.7" height="55.7" rx="6" fill="url(#waterGradient)" stroke="#0e7490" stroke-width="2.5"  filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" /><text x="309.7" y="322.3" font-size="15" font-weight="900" text-anchor="middle" fill="#0f172a">H</text><text x="309.7" y="361.2" font-size="11" text-anchor="middle" fill="#374151">almonds</text><rect x="952.3" y="414.9" width="55.7" height="55.7" rx="6" fill="#e5e7eb" stroke="#64748b" stroke-width="2.5" stroke-dasharray="7 5" filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" /><text x="980.1" y="447.7" font-size="15" font-weight="900" text-anchor="middle" fill="#0f172a">I</text><text x="980.1" y="486.6" font-size="11" text-anchor="middle" fill="#374151">almonds</text><circle cx="222.6" cy="442.7" r="10" fill="#ef4444" stroke="#7f1d1d" stroke-width="3" /><line x1="214.6" y1="434.7" x2="180.6" y2="403.7" stroke="#7f1d1d" stroke-width="2" stroke-linecap="round" /><rect x="54.6" y="388.7" width="126" height="30" rx="15" fill="#fff1f2" stroke="#ef4444" stroke-width="2" /><text x="117.6" y="408.7" font-size="14" font-weight="900" text-anchor="middle" fill="#7f1d1d">report location</text>
+        </svg>
+      </section>
+      <aside class="panel">
+        <div class="metrics"><div class="metric"><strong>District radius</strong><span>4.0 mi</span></div><div class="metric"><strong>Alerted fields</strong><span>7</span></div><div class="metric"><strong>Highest risk</strong><span>1.0</span></div><div class="metric"><strong>Unaffected fields</strong><span>2</span></div></div>
+        <h2>What this proves</h2>
+        <ul><li><span>All almond fields inside the custom irrigation district/radius alert.</span></li><li><span>Risk is weighted by center distance from the report location.</span></li><li><span>F is in the district but corn, which is not listed as vulnerable for this pest.</span></li><li><span>I is almonds but outside the irrigation district, so it is filtered out.</span></li></ul>
+        <details>
+          <summary>Raw simulation output</summary>
+          <pre>{
+  "irrigation_radius_miles": 4.0,
+  "expected_alert_ids": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "G",
+    "H"
+  ],
+  "alerts": [
+    {
+      "field_id": "A",
+      "crop": "almonds",
+      "distance_miles": 0.0,
+      "risk_score": 1.0,
+      "matched_methods": [
+        "water"
+      ],
+      "reason": "Same custom irrigation district, weighted by distance"
+    },
+    {
+      "field_id": "B",
+      "crop": "almonds",
+      "distance_miles": 0.62,
+      "risk_score": 0.845,
+      "matched_methods": [
+        "water"
+      ],
+      "reason": "Same custom irrigation district, weighted by distance"
+    },
+    {
+      "field_id": "H",
+      "crop": "almonds",
+      "distance_miles": 0.877,
+      "risk_score": 0.781,
+      "matched_methods": [
+        "water"
+      ],
+      "reason": "Same custom irrigation district, weighted by distance"
+    },
+    {
+      "field_id": "C",
+      "crop": "almonds",
+      "distance_miles": 1.24,
+      "risk_score": 0.69,
+      "matched_methods": [
+        "water"
+      ],
+      "reason": "Same custom irrigation district, weighted by distance"
+    },
+    {
+      "field_id": "D",
+      "crop": "almonds",
+      "distance_miles": 1.86,
+      "risk_score": 0.535,
+      "matched_methods": [
+        "water"
+      ],
+      "reason": "Same custom irrigation district, weighted by distance"
+    },
+    {
+      "field_id": "E",
+      "crop": "almonds",
+      "distance_miles": 2.48,
+      "risk_score": 0.38,
+      "matched_methods": [
+        "water"
+      ],
+      "reason": "Same custom irrigation district, weighted by distance"
+    },
+    {
+      "field_id": "G",
+      "crop": "almonds",
+      "distance_miles": 3.45,
+      "risk_score": 0.137,
+      "matched_methods": [
+        "water"
+      ],
+      "reason": "Same custom irrigation district, weighted by distance"
+    }
+  ]
+}</pre>
+        </details>
+      </aside>
+    </div>
+  </main>
+</body>
+</html>

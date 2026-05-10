@@ -60,7 +60,6 @@ class SpreadAnalysis(BaseModel):
     travel_distance: float
     pest_name: str
     confidence: float
-    water_travel_hours: Optional[float] = Field(default=None, gt=0)
 
 
 class CandidateField(BaseModel):
@@ -69,12 +68,6 @@ class CandidateField(BaseModel):
     latitude: float = Field(..., ge=-90, le=90)
     longitude: float = Field(..., ge=-180, le=180)
     crop_type: str
-
-
-class WaterFlowPath(BaseModel):
-    coordinates: List[Location] = Field(..., min_length=2)
-    flow_speed_mph: float = Field(..., gt=0)
-    max_snap_distance_miles: float = Field(default=0.25, gt=0)
 
 
 class AlertSeverity(str, Enum):
@@ -87,7 +80,6 @@ class SpreadRequest(BaseModel):
     source: SpreadSource
     analysis: SpreadAnalysis
     fields: List[CandidateField]
-    water_flow_paths: List[WaterFlowPath] = Field(default_factory=list)
 
 
 class FieldAlert(BaseModel):

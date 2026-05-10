@@ -8,13 +8,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.models import (  # noqa: E402
     CandidateField,
-    Location,
     SpreadAnalysis,
     SpreadMethod,
     SpreadRequest,
     SpreadSource,
     VulnerableCrop,
-    WaterFlowPath,
 )
 from app.services.spread import calculate_spread  # noqa: E402
 
@@ -36,7 +34,6 @@ def _analysis(*methods: SpreadMethod, travel_distance: float = 1.0) -> SpreadAna
         travel_distance=travel_distance,
         pest_name="Test Pest",
         confidence=0.9,
-        water_travel_hours=24,
     )
 
 
@@ -77,6 +74,26 @@ class SpreadModeTests(unittest.TestCase):
         self.assertEqual(response.alerts[0].matched_methods, [SpreadMethod.adjacency])
         self.assertEqual(response.alerts[0].distance, 0)
 
+    def test_adjacency_uses_hardcoded_hop_distance(self) -> None:
+        request = SpreadRequest(
+            source=SOURCE,
+            analysis=_analysis(SpreadMethod.adjacency, travel_distance=0.1),
+            fields=[
+                _field(
+                    "nearby-almond",
+                    latitude=SOURCE.latitude + 0.01,
+                    longitude=SOURCE.longitude,
+                    crop_type="almonds",
+                )
+            ],
+        )
+
+        response = calculate_spread(request)
+
+        self.assertEqual(len(response.alerts), 1)
+        self.assertEqual(response.alerts[0].field_id, "nearby-almond")
+        self.assertEqual(response.alerts[0].matched_methods, [SpreadMethod.adjacency])
+
     def test_wind_alerts_downwind_field(self) -> None:
         request = SpreadRequest(
             source=SOURCE,
@@ -99,38 +116,6 @@ class SpreadModeTests(unittest.TestCase):
         self.assertEqual(len(response.alerts), 1)
         self.assertEqual(response.alerts[0].field_id, "north-field")
         self.assertEqual(response.alerts[0].matched_methods, [SpreadMethod.wind])
-        self.assertGreater(response.alerts[0].risk_score, 0)
-
-    def test_water_alerts_downstream_field(self) -> None:
-        downstream_field = _field(
-            "downstream-field",
-            latitude=SOURCE.latitude + 0.01,
-            longitude=SOURCE.longitude,
-        )
-        request = SpreadRequest(
-            source=SOURCE,
-            analysis=_analysis(SpreadMethod.water, travel_distance=2),
-            fields=[downstream_field],
-            water_flow_paths=[
-                WaterFlowPath(
-                    coordinates=[
-                        Location(latitude=SOURCE.latitude, longitude=SOURCE.longitude),
-                        Location(
-                            latitude=downstream_field.latitude,
-                            longitude=downstream_field.longitude,
-                        ),
-                    ],
-                    flow_speed_mph=1,
-                    max_snap_distance_miles=0.1,
-                )
-            ],
-        )
-
-        response = calculate_spread(request)
-
-        self.assertEqual(len(response.alerts), 1)
-        self.assertEqual(response.alerts[0].field_id, "downstream-field")
-        self.assertEqual(response.alerts[0].matched_methods, [SpreadMethod.water])
         self.assertGreater(response.alerts[0].risk_score, 0)
 
     def test_non_vulnerable_crop_does_not_alert(self) -> None:
