@@ -18,6 +18,7 @@ import {
   VulnerableCrop,
   fetchAlertById,
 } from '@/lib/alerts';
+import { useTutorial } from '@/lib/tutorial';
 
 const severityStyles: Record<AlertSeverity, { pin: string; tint: string; text: string }> = {
   High: { pin: '#dc3b3b', tint: '#fdecec', text: '#b91c1c' },
@@ -28,6 +29,7 @@ const severityStyles: Record<AlertSeverity, { pin: string; tint: string; text: s
 export default function AlertDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { step, advance } = useTutorial();
   const [alert, setAlert] = useState<AlertItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -107,9 +109,9 @@ export default function AlertDetailScreen() {
 
             <View style={styles.metrics}>
               <Metric icon="near-me" label="Distance" value={alert.distance} />
-              <Metric icon="radio-button-unchecked" label="Radius" value={alert.travelDistance} />
-              <Metric icon="travel-explore" label="Spread" value={formatMethods(alert.spreadMethods)} />
-              <Metric icon="verified" label="Confidence" value={formatPercent(alert.confidence)} />
+              <Metric icon="radio-button-unchecked" label="Radius" value={alert.travelDistance} highlighted={step === 3} />
+              <Metric icon="travel-explore" label="Spread" value={formatMethods(alert.spreadMethods)} highlighted={step === 4} />
+              <Metric icon="verified" label="Confidence" value={formatPercent(alert.confidence)} highlighted={step === 2} />
             </View>
 
             <Section title="Recommendations" icon="checklist">
@@ -132,10 +134,14 @@ export default function AlertDetailScreen() {
               )}
             </Section>
 
-            <Section title="Affected Fields" icon="map">
+            <Section title="Affected Fields" icon="map" highlighted={step === 5}>
               {alert.affectedFields.length > 0 ? (
                 alert.affectedFields.map((field) => (
-                  <AffectedFieldRow key={`${field.fieldId}-${field.fieldName}`} field={field} />
+                  <AffectedFieldRow
+                    key={`${field.fieldId}-${field.fieldName}`}
+                    field={field}
+                    onPress={step === 5 ? () => advance() : undefined}
+                  />
                 ))
               ) : (
                 <Text style={styles.emptyText}>No nearby affected fields are attached yet.</Text>
@@ -152,10 +158,12 @@ function Section({
   title,
   icon,
   children,
+  highlighted,
 }: {
   title: string;
   icon: keyof typeof MaterialIcons.glyphMap;
   children: React.ReactNode;
+  highlighted?: boolean;
 }) {
   return (
     <View style={styles.section}>
@@ -163,7 +171,7 @@ function Section({
         <MaterialIcons name={icon} size={21} color="#2f7d32" />
         <Text style={styles.sectionTitle}>{title}</Text>
       </View>
-      <View style={styles.sectionBody}>{children}</View>
+      <View style={[styles.sectionBody, highlighted && styles.highlighted]}>{children}</View>
     </View>
   );
 }
@@ -172,13 +180,15 @@ function Metric({
   icon,
   label,
   value,
+  highlighted,
 }: {
   icon: keyof typeof MaterialIcons.glyphMap;
   label: string;
   value: string;
+  highlighted?: boolean;
 }) {
   return (
-    <View style={styles.metric}>
+    <View style={[styles.metric, highlighted && styles.highlighted]}>
       <MaterialIcons name={icon} size={20} color="#2f7d32" />
       <Text style={styles.metricLabel}>{label}</Text>
       <Text style={styles.metricValue} numberOfLines={2}>
@@ -210,11 +220,11 @@ function ImpactBlock({ impact }: { impact: VulnerableCrop }) {
   );
 }
 
-function AffectedFieldRow({ field }: { field: AffectedField }) {
+function AffectedFieldRow({ field, onPress }: { field: AffectedField; onPress?: () => void }) {
   const colors = severityStyles[field.severity];
 
   return (
-    <View style={styles.fieldRow}>
+    <Pressable style={styles.fieldRow} onPress={onPress} disabled={!onPress}>
       <View style={[styles.fieldIcon, { backgroundColor: colors.tint }]}>
         <MaterialIcons name="place" size={18} color={colors.pin} />
       </View>
@@ -238,7 +248,7 @@ function AffectedFieldRow({ field }: { field: AffectedField }) {
           </Text>
         ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -514,5 +524,14 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_400Regular', fontWeight: '400',
     marginTop: 8,
     textAlign: 'center',
+  },
+  highlighted: {
+    borderColor: '#2d4a3e',
+    borderWidth: 2,
+    shadowColor: '#2d4a3e',
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 6,
   },
 });

@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { FeatureCollection, Geometry } from 'geojson';
 
 import { createSupabaseWithAccessToken, supabase } from '@/lib/supabase';
+import { useTutorial } from '@/lib/tutorial';
 
 type FieldRow = {
   id: number;
@@ -191,6 +192,7 @@ export default function FieldSelectScreen() {
   const { getToken, isLoaded, isSignedIn } = useAuth();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { step, advance } = useTutorial();
   const { height: viewportHeight } = useWindowDimensions();
   const [activeField, setActiveField] = useState<VisualField | null>(null);
   const [cropByFieldId, setCropByFieldId] = useState<Record<number, string>>({});
@@ -750,7 +752,7 @@ export default function FieldSelectScreen() {
             <View style={styles.emptyList}>
               {loading ? <ActivityIndicator size="small" color="#2563eb" /> : null}
               <Text style={styles.emptyListTitle}>No saved fields yet</Text>
-              <Pressable style={styles.emptyListButton} onPress={() => setViewMode('map')}>
+              <Pressable style={styles.emptyListButton} onPress={() => { if (step === 8) advance(); setViewMode('map'); }}>
                 <Text style={styles.emptyListButtonText}>Open Map</Text>
               </Pressable>
             </View>
@@ -928,7 +930,7 @@ export default function FieldSelectScreen() {
             <Pressable
               style={[styles.saveButton, !cropDraft.trim() && styles.saveButtonDisabled]}
               disabled={!cropDraft.trim()}
-              onPress={saveCrop}
+              onPress={() => { if (step === 9) advance(); saveCrop(); }}
             >
               <Text style={styles.saveButtonText}>Save Crop</Text>
             </Pressable>

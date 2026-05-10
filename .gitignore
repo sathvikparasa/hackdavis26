@@ -21,3 +21,4 @@ backend/.env
 backend/.env.*
 !backend/.env.example
 node_modules/.yarn-integrity
+frontend/eas.json

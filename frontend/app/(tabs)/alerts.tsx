@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AlertItem, AlertSeverity, fetchAlerts } from '@/lib/alerts';
 import { getFilterState, subscribeFilterState } from '@/lib/filter-store';
+import { useTutorial } from '@/lib/tutorial';
 
 const severityConfig: Record<AlertSeverity, { cardBg: string; accent: string }> = {
   High:     { cardBg: 'rgba(186,26,26,0.04)',  accent: '#ba1a1a' },
@@ -23,6 +24,7 @@ const severityConfig: Record<AlertSeverity, { cardBg: string; accent: string }> 
 
 export default function AlertsScreen() {
   const router = useRouter();
+  const { step, advance } = useTutorial();
 
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [query, setQuery] = useState('');
@@ -113,7 +115,7 @@ export default function AlertsScreen() {
                 <AlertCard
                   key={alert.id}
                   alert={alert}
-                  onPress={() => router.push(`/alert/${alert.id}`)}
+                  onPress={() => { if (step === 1) advance(); router.push(`/alert/${alert.id}`); }}
                   onViewMap={() => router.push({ pathname: '/(tabs)/pest-map', params: { alertId: alert.id } })}
                 />
               ))

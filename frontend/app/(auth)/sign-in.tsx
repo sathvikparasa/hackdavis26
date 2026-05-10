@@ -1,4 +1,4 @@
-import { useSignIn, useSignUp } from '@clerk/expo'
+import { useClerk, useSignIn, useSignUp } from '@clerk/expo'
 import { type Href, useRouter } from 'expo-router'
 import React from 'react'
 import {
@@ -40,6 +40,7 @@ const DIGIT_COUNT = 6
 export default function SignInScreen() {
   const { signIn, fetchStatus: signInStatus } = useSignIn()
   const { signUp, fetchStatus: signUpStatus } = useSignUp()
+  const { setActive } = useClerk()
   const router = useRouter()
   const floatY = useFloatAnim()
 
@@ -57,12 +58,15 @@ export default function SignInScreen() {
 
   const handleSignIn = async () => {
     setError('')
-    const { error: err } = await signIn.password({ emailAddress: email, password })
-    if (err) { setError(err.message ?? 'Sign in failed'); return }
-    if (signIn.status === 'complete') {
-      await signIn.finalize({
-        navigate: ({ decorateUrl }) => router.replace(decorateUrl('/(tabs)') as Href),
-      })
+    try {
+      const { error: err } = await signIn.password({ emailAddress: email, password })
+      if (err) { setError(err.message ?? 'Sign in failed'); return }
+      if (signIn.status === 'complete') {
+        await setActive({ session: signIn.createdSessionId })
+        router.replace('/(tabs)' as Href)
+      }
+    } catch (e: any) {
+      setError(e?.message ?? 'Sign in failed')
     }
   }
 
@@ -76,17 +80,18 @@ export default function SignInScreen() {
 
   const handleVerify = async () => {
     setError('')
-    await signUp.verifications.verifyEmailCode({ code })
-    if (signUp.status === 'complete') {
-      await signUp.finalize({
-        navigate: async ({ session, decorateUrl }) => {
-          const clerkId = session?.user?.id ?? ''
-          if (clerkId) await upsertProfile(clerkId, email, name || undefined).catch(console.error)
-          router.replace(decorateUrl('/(tabs)') as Href)
-        },
-      })
-    } else {
-      setError('Verification failed. Check your code and try again.')
+    try {
+      await signUp.verifications.verifyEmailCode({ code })
+      if (signUp.status === 'complete') {
+        const clerkId = signUp.createdUserId ?? ''
+        if (clerkId) await upsertProfile(clerkId, email, name || undefined).catch(console.error)
+        await setActive({ session: signUp.createdSessionId })
+        router.replace('/(tabs)' as Href)
+      } else {
+        setError('Verification failed. Check your code and try again.')
+      }
+    } catch (e: any) {
+      setError(e?.message ?? 'Verification failed')
     }
   }
 

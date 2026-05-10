@@ -14,8 +14,10 @@ import { StatusBar } from 'expo-status-bar'
 import { useEffect } from 'react'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 
+import { TutorialOverlay } from '@/components/TutorialOverlay'
 import { useColorScheme } from '@/hooks/use-color-scheme'
 import { PushNotificationsBootstrap } from '@/lib/push-notifications'
+import { TutorialProvider } from '@/lib/tutorial'
 
 SplashScreen.preventAutoHideAsync()
 
@@ -49,13 +51,17 @@ export default function RootLayout() {
       <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <PushNotificationsBootstrap />
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="alert/[id]" options={{ headerShown: false }} />
-            <Stack.Screen name="alert/filter" options={{ headerShown: false }} />
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-          </Stack>
+          <TutorialProvider>
+            <Stack>
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="alert/[id]" options={{ headerShown: false }} />
+              <Stack.Screen name="alert/filter" options={{ headerShown: false }} />
+              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+            </Stack>
+            <TutorialOverlay />
+          </TutorialProvider>
           <StatusBar style="auto" />
         </ThemeProvider>
       </ClerkProvider>

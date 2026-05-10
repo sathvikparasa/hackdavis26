@@ -20,6 +20,7 @@ import SignUpSvg from '@/assets/illustrations/sign-up.svg'
 import MfaSvg from '@/assets/illustrations/mfa.svg'
 import AnticipateLogoSvg from '@/anticipate_logo.svg'
 import { supabase, upsertProfile } from '@/lib/supabase'
+import { useTutorial } from '@/lib/tutorial'
 
 const DIGIT_COUNT = 6
 
@@ -41,6 +42,7 @@ function useFloatAnim() {
 function AuthForm() {
   const { signIn, fetchStatus: signInStatus } = useSignIn()
   const { signUp, fetchStatus: signUpStatus } = useSignUp()
+  const { setActive } = useClerk()
   const router = useRouter()
   const floatY = useFloatAnim()
 
@@ -58,12 +60,15 @@ function AuthForm() {
 
   const handleSignIn = async () => {
     setError('')
-    const { error: err } = await signIn.password({ emailAddress: email, password })
-    if (err) { setError(err.message ?? 'Sign in failed'); return }
-    if (signIn.status === 'complete') {
-      await signIn.finalize({
-        navigate: ({ decorateUrl }) => router.replace(decorateUrl('/(tabs)/profile') as Href),
-      })
+    try {
+      const { error: err } = await signIn.password({ emailAddress: email, password })
+      if (err) { setError(err.message ?? 'Sign in failed'); return }
+      if (signIn.status === 'complete') {
+        await setActive({ session: signIn.createdSessionId })
+        router.replace('/(tabs)/profile' as Href)
+      }
+    } catch (e: any) {
+      setError(e?.message ?? 'Sign in failed')
     }
   }
 
@@ -77,21 +82,19 @@ function AuthForm() {
 
   const handleVerify = async () => {
     setError('')
-    await signUp.verifications.verifyEmailCode({ code })
-    if (signUp.status === 'complete') {
-      await signUp.finalize({
-        navigate: async ({ session, decorateUrl }) => {
-          const clerkId = session?.user?.id ?? ''
-          if (clerkId) await upsertProfile(clerkId, email, name || undefined).catch(console.error)
-          router.replace(decorateUrl('/(tabs)/profile') as Href)
-        },
-      })
-    } else {
-      setError('Verification failed. Check your code and try again.')
+    try {
+      await signUp.verifications.verifyEmailCode({ code })
+      if (signUp.status === 'complete') {
+        const clerkId = signUp.createdUserId ?? ''
+        if (clerkId) await upsertProfile(clerkId, email, name || undefined).catch(console.error)
+        await setActive({ session: signUp.createdSessionId })
+        router.replace('/(tabs)/profile' as Href)
+      } else {
+        setError('Verification failed. Check your code and try again.')
+      }
+    } catch (e: any) {
+      setError(e?.message ?? 'Verification failed')
     }
-  }
-
-  const handleVerifyDummy = async () => {
   }
 
   const handleDigitChange = (value: string, index: number) => {
@@ -222,6 +225,7 @@ export default function ProfilePage() {
   const { user } = useUser()
   const { signOut } = useClerk()
   const router = useRouter()
+  const { startTutorial } = useTutorial()
   const [reports, setReports] = React.useState<UserReport[]>([])
   const [reportsLoading, setReportsLoading] = React.useState(true)
   const [profileName, setProfileName] = React.useState<string | null>(null)
@@ -262,7 +266,11 @@ export default function ProfilePage() {
     void loadReports()
   }, [user?.id])
 
-  if (!isLoaded) return <View style={{ flex: 1, backgroundColor: '#fafafa' }} />
+  if (!isLoaded) return (
+    <View style={{ flex: 1, backgroundColor: '#fafafa', alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ fontFamily: 'Outfit_400Regular', color: '#9ca3af', fontSize: 14 }}>Loading…</Text>
+    </View>
+  )
   if (!isSignedIn) return <AuthForm />
 
   const email = user?.emailAddresses[0]?.emailAddress ?? ''
@@ -313,7 +321,7 @@ export default function ProfilePage() {
               key={item.key}
               style={({ pressed }) => [
                 styles.settingsRow,
-                i < SETTINGS.length - 1 && styles.settingsRowBorder,
+                styles.settingsRowBorder,
                 pressed && { backgroundColor: '#f9fafb' },
               ]}
             >
@@ -326,6 +334,18 @@ export default function ProfilePage() {
               <MaterialIcons name="chevron-right" size={20} color="#d1d5db" />
             </Pressable>
           ))}
+          <Pressable
+            style={({ pressed }) => [styles.settingsRow, pressed && { backgroundColor: '#f9fafb' }]}
+            onPress={() => { startTutorial(); router.navigate('/(tabs)/alerts' as any) }}
+          >
+            <View style={styles.settingsLeft}>
+              <View style={styles.settingsIconBox}>
+                <MaterialIcons name="school" size={18} color="#71897b" />
+              </View>
+              <Text style={styles.settingsLabel}>Restart Tutorial</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={20} color="#d1d5db" />
+          </Pressable>
         </View>
       </View>
 
