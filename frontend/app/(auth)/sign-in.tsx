@@ -1,96 +1,231 @@
-import { useSignIn } from '@clerk/expo'
+import { useSignIn, useSignUp } from '@clerk/expo'
 import { type Href, useRouter } from 'expo-router'
 import React from 'react'
 import {
+  Animated,
+  Easing,
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native'
+
+import { upsertProfile } from '@/lib/supabase'
 import LoginSvg from '@/assets/illustrations/login.svg'
+import SignUpSvg from '@/assets/illustrations/sign-up.svg'
+import MfaSvg from '@/assets/illustrations/mfa.svg'
+import AnticipateLogoSvg from '@/anticipate_logo.svg'
+
+function useFloatAnim() {
+  const anim = React.useRef(new Animated.Value(0)).current
+  React.useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(anim, { toValue: -12, duration: 2200, useNativeDriver: true, easing: Easing.inOut(Easing.sin) }),
+        Animated.timing(anim, { toValue: 0,   duration: 2200, useNativeDriver: true, easing: Easing.inOut(Easing.sin) }),
+      ])
+    )
+    loop.start()
+    return () => loop.stop()
+  }, [anim])
+  return anim
+}
+
+const DIGIT_COUNT = 6
 
 export default function SignInScreen() {
-  const { signIn, fetchStatus } = useSignIn()
+  const { signIn, fetchStatus: signInStatus } = useSignIn()
+  const { signUp, fetchStatus: signUpStatus } = useSignUp()
   const router = useRouter()
+  const floatY = useFloatAnim()
 
+  const [mode, setMode] = React.useState<'signIn' | 'signUp'>('signIn')
+  const [name, setName] = React.useState('')
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [error, setError] = React.useState('')
+  const [pendingVerification, setPendingVerification] = React.useState(false)
+  const [digits, setDigits] = React.useState<string[]>(Array(DIGIT_COUNT).fill(''))
+  const inputRefs = React.useRef<(TextInput | null)[]>(Array(DIGIT_COUNT).fill(null))
 
-  const isBusy = fetchStatus === 'fetching'
+  const isBusy = signInStatus === 'fetching' || signUpStatus === 'fetching'
+  const code = digits.join('')
 
-  const handleContinue = async () => {
+  const handleSignIn = async () => {
     setError('')
     const { error: err } = await signIn.password({ emailAddress: email, password })
     if (err) { setError(err.message ?? 'Sign in failed'); return }
     if (signIn.status === 'complete') {
       await signIn.finalize({
-        navigate: ({ decorateUrl }) => {
-          router.replace(decorateUrl('/(tabs)') as Href)
-        },
+        navigate: ({ decorateUrl }) => router.replace(decorateUrl('/(tabs)') as Href),
       })
     }
   }
 
+  const handleSignUp = async () => {
+    setError('')
+    const { error: err } = await signUp.password({ emailAddress: email, password })
+    if (err) { setError(err.message ?? 'Sign up failed'); return }
+    await signUp.verifications.sendEmailCode()
+    setPendingVerification(true)
+  }
+
+  const handleVerify = async () => {
+    setError('')
+    await signUp.verifications.verifyEmailCode({ code })
+    if (signUp.status === 'complete') {
+      await signUp.finalize({
+        navigate: async ({ session, decorateUrl }) => {
+          const clerkId = session?.user?.id ?? ''
+          if (clerkId) await upsertProfile(clerkId, email, name || undefined).catch(console.error)
+          router.replace(decorateUrl('/(tabs)') as Href)
+        },
+      })
+    } else {
+      setError('Verification failed. Check your code and try again.')
+    }
+  }
+
+  const handleDigitChange = (value: string, index: number) => {
+    const next = [...digits]
+    next[index] = value.slice(-1)
+    setDigits(next)
+    if (value && index < DIGIT_COUNT - 1) inputRefs.current[index + 1]?.focus()
+  }
+
+  const handleDigitKeyPress = (key: string, index: number) => {
+    if (key === 'Backspace' && !digits[index] && index > 0) inputRefs.current[index - 1]?.focus()
+  }
+
+  if (pendingVerification) {
+    return (
+      <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          <AnticipateLogoSvg width={180} height={75} style={styles.logo} />
+
+          <Animated.View style={[styles.illustrationContainer, { transform: [{ translateY: floatY }] }]} pointerEvents="none">
+            <MfaSvg width={165} height={118} />
+          </Animated.View>
+
+          <View style={styles.mfaContent}>
+            <Text style={styles.heading}>Check your email</Text>
+            <Text style={styles.subheading}>We sent a 6-digit code to {email}</Text>
+
+            <View style={styles.digitRow}>
+              {digits.map((digit, i) => (
+                <React.Fragment key={i}>
+                  {i === 3 && <View style={styles.digitGap} />}
+                  <TextInput
+                    ref={(r) => { inputRefs.current[i] = r }}
+                    style={styles.digitInput}
+                    keyboardType="number-pad"
+                    maxLength={1}
+                    value={digit}
+                    onChangeText={(v) => handleDigitChange(v, i)}
+                    onKeyPress={({ nativeEvent }) => handleDigitKeyPress(nativeEvent.key, i)}
+                    textAlign="center"
+                  />
+                </React.Fragment>
+              ))}
+            </View>
+
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+
+            <Pressable
+              style={({ pressed }) => [styles.button, (isBusy || code.length < 6) && styles.buttonDisabled, pressed && { opacity: 0.85 }]}
+              onPress={handleVerify}
+              disabled={isBusy || code.length < 6}
+            >
+              <Text style={styles.buttonText}>{isBusy ? 'Verifying…' : 'Verify'}</Text>
+            </Pressable>
+
+            <Pressable onPress={() => signUp.verifications.sendEmailCode()}>
+              <Text style={styles.link}>Resend code</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </View>
+    )
+  }
+
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={styles.illustrationContainer} pointerEvents="none">
-        <LoginSvg width={279} height={248} />
-      </View>
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <AnticipateLogoSvg width={180} height={75} style={styles.logo} />
 
-      <Text style={styles.appTitle}>ANTICIPATE</Text>
+        <Animated.View style={[styles.illustrationContainer, { transform: [{ translateY: floatY }] }]} pointerEvents="none">
+          {mode === 'signIn' ? <LoginSvg width={180} height={160} /> : <SignUpSvg width={165} height={127} />}
+        </Animated.View>
 
-      <View style={styles.headerSection}>
-        <Text style={styles.heading}>Welcome Back!</Text>
-        <Text style={styles.subheading}>Sign in to continue</Text>
-      </View>
-
-      <View style={styles.form}>
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Email address</Text>
-          <TextInput
-            style={styles.input}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            placeholder="you@example.com"
-            placeholderTextColor="#9aada0"
-            value={email}
-            onChangeText={setEmail}
-          />
+        <View style={styles.headerSection}>
+          <Text style={styles.heading}>{mode === 'signIn' ? 'Sign In' : 'Sign Up'}</Text>
+          <Text style={styles.subheading}>{mode === 'signIn' ? '' : ''}</Text>
         </View>
 
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            secureTextEntry
-            placeholder="••••••••"
-            placeholderTextColor="#9aada0"
-            value={password}
-            onChangeText={setPassword}
-          />
+        <View style={styles.form}>
+          {mode === 'signUp' && (
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="John Doe"
+                placeholderTextColor="#9aada0"
+                value={name}
+                onChangeText={setName}
+              />
+            </View>
+          )}
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Email address</Text>
+            <TextInput
+              style={styles.input}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              placeholder="you@example.com"
+              placeholderTextColor="#9aada0"
+              value={email}
+              onChangeText={setEmail}
+            />
+          </View>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Password</Text>
+            <TextInput
+              style={styles.input}
+              secureTextEntry
+              placeholder="••••••••"
+              placeholderTextColor="#9aada0"
+              value={password}
+              onChangeText={setPassword}
+            />
+          </View>
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          <Pressable
+            style={({ pressed }) => [styles.button, (isBusy || !email || !password) && styles.buttonDisabled, pressed && { opacity: 0.85 }]}
+            onPress={mode === 'signIn' ? handleSignIn : handleSignUp}
+            disabled={isBusy || !email || !password}
+          >
+            <Text style={styles.buttonText}>
+              {isBusy ? (mode === 'signIn' ? 'Signing in…' : 'Creating account…') : 'Continue'}
+            </Text>
+          </Pressable>
         </View>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        <Pressable
-          style={({ pressed }) => [styles.button, (isBusy || !email || !password) && styles.buttonDisabled, pressed && { opacity: 0.85 }]}
-          onPress={handleContinue}
-          disabled={isBusy || !email || !password}
-        >
-          <Text style={styles.buttonText}>{isBusy ? 'Signing in…' : 'Continue'}</Text>
+        <Pressable onPress={() => { setMode(mode === 'signIn' ? 'signUp' : 'signIn'); setError('') }}>
+          <Text style={styles.link}>
+            {mode === 'signIn' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+          </Text>
         </Pressable>
-      </View>
 
-      <View style={styles.switchRow}>
-        <Text style={styles.switchText}>{"Don't have an account? "}</Text>
-        <Pressable onPress={() => router.push('/(auth)/sign-up')}>
-          <Text style={styles.switchLink}>Sign up</Text>
-        </Pressable>
-      </View>
+        <View nativeID="clerk-captcha" />
+      </ScrollView>
     </KeyboardAvoidingView>
   )
 }
@@ -98,59 +233,61 @@ export default function SignInScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f7faf5',
-    paddingHorizontal: 24,
-    paddingTop: 48,
-    paddingBottom: 32,
+    backgroundColor: '#fafafa',
   },
-  appTitle: {
-    fontWeight: '700',
-    fontSize: 20,
-    color: '#191c1a',
-    letterSpacing: 6,
-    textAlign: 'center',
-    marginTop: 48,
-    marginBottom: 56,
+  logo: {
+    alignSelf: 'center',
+    marginBottom: -8,
+  },
+  illustrationContainer: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginBottom: 8,
+  },
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingTop: 90,
+    paddingBottom: 24,
   },
   headerSection: {
-    marginBottom: 40,
+    marginBottom: 24,
     gap: 4,
   },
   heading: {
-    fontWeight: '700',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
     fontSize: 30,
-    color: '#191c1a',
+    color: '#111827',
     lineHeight: 36,
   },
   subheading: {
-    fontWeight: '500',
+    fontFamily: 'Outfit_500Medium', fontWeight: '500',
     fontSize: 16,
-    color: '#424844',
+    color: '#4b5563',
     lineHeight: 24,
     marginTop: 4,
   },
   form: {
-    gap: 24,
-    marginBottom: 16,
+    gap: 16,
+    marginBottom: 12,
   },
   fieldGroup: {
     gap: 8,
   },
   label: {
-    fontWeight: '500',
+    fontFamily: 'Outfit_500Medium', fontWeight: '500',
     fontSize: 14,
     color: '#374151',
     lineHeight: 20,
   },
   input: {
-    backgroundColor: '#ecefea',
+    backgroundColor: '#f3f4f6',
     borderWidth: 1,
-    borderColor: '#c2c8c2',
+    borderColor: '#d1d5db',
     borderRadius: 12,
     paddingHorizontal: 17,
     paddingVertical: 18,
     fontSize: 16,
-    color: '#191c1a',
+    color: '#111827',
   },
   button: {
     backgroundColor: '#71897b',
@@ -162,23 +299,40 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.55 },
   buttonText: {
     color: '#fff',
-    fontWeight: '700',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
     fontSize: 16,
     lineHeight: 24,
   },
-  switchRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 20,
+  link: {
+    color: '#71897b',
+    fontFamily: 'Outfit_600SemiBold', fontWeight: '600',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 4,
   },
-  switchText: { color: '#424844', fontSize: 14 },
-  switchLink: { color: '#546522', fontWeight: '600', fontSize: 14 },
   error: { color: '#d32f2f', fontSize: 13 },
-  illustrationContainer: {
+  mfaContent: {
+    paddingHorizontal: 24,
+    paddingTop: 0,
+    gap: 20,
+  },
+  digitRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    position: 'absolute',
-    bottom: 32,
-    left: 0,
-    right: 0,
+    gap: 8,
+    marginVertical: 4,
+  },
+  digitGap: { width: 16 },
+  digitInput: {
+    width: 48,
+    height: 64,
+    backgroundColor: '#f3f4f6',
+    borderBottomWidth: 2,
+    borderBottomColor: '#d1d5db',
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    fontSize: 28,
+    color: '#111827',
+    textAlign: 'center',
   },
 })

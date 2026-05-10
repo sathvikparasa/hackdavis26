@@ -270,7 +270,7 @@ function formatDuration(days: number | null): string {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8faf7',
+    backgroundColor: '#fafafa',
   },
   content: {
     paddingBottom: 110,
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
   title: {
     color: '#111827',
     fontSize: 31,
-    fontWeight: '900',
+    fontFamily: 'Outfit_700Bold', fontWeight: '900',
   },
   heroMetaRow: {
     alignItems: 'center',
@@ -329,12 +329,12 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'Outfit_700Bold', fontWeight: '900',
   },
   cropText: {
     color: '#374151',
     fontSize: 15,
-    fontWeight: '800',
+    fontFamily: 'Outfit_700Bold', fontWeight: '800',
   },
   metrics: {
     flexDirection: 'row',
@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
   },
   metric: {
     backgroundColor: '#fff',
-    borderColor: '#edf0ed',
+    borderColor: '#eef0ef',
     borderRadius: 14,
     borderWidth: 1,
     flex: 1,
@@ -355,13 +355,13 @@ const styles = StyleSheet.create({
   metricLabel: {
     color: '#6b7280',
     fontSize: 12,
-    fontWeight: '800',
+    fontFamily: 'Outfit_700Bold', fontWeight: '800',
     marginTop: 10,
   },
   metricValue: {
     color: '#111827',
     fontSize: 15,
-    fontWeight: '900',
+    fontFamily: 'Outfit_700Bold', fontWeight: '900',
     marginTop: 5,
   },
   section: {
@@ -376,11 +376,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: '#111827',
     fontSize: 20,
-    fontWeight: '900',
+    fontFamily: 'Outfit_700Bold', fontWeight: '900',
   },
   sectionBody: {
     backgroundColor: '#fff',
-    borderColor: '#edf0ed',
+    borderColor: '#eef0ef',
     borderRadius: 17,
     borderWidth: 1,
     gap: 12,
@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   bulletDot: {
-    backgroundColor: '#2f7d32',
+    backgroundColor: '#71897b',
     borderRadius: 4,
     height: 8,
     marginTop: 7,
@@ -406,13 +406,13 @@ const styles = StyleSheet.create({
     color: '#374151',
     flex: 1,
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
     lineHeight: 22,
   },
   emptyText: {
     color: '#6b7280',
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
     lineHeight: 22,
   },
   impactBlock: {
@@ -421,7 +421,7 @@ const styles = StyleSheet.create({
   impactLabel: {
     color: '#111827',
     fontSize: 15,
-    fontWeight: '900',
+    fontFamily: 'Outfit_700Bold', fontWeight: '900',
   },
   durationRow: {
     alignItems: 'center',
@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
   durationText: {
     color: '#6b7280',
     fontSize: 14,
-    fontWeight: '800',
+    fontFamily: 'Outfit_700Bold', fontWeight: '800',
   },
   fieldRow: {
     alignItems: 'flex-start',
@@ -458,29 +458,29 @@ const styles = StyleSheet.create({
     color: '#111827',
     flex: 1,
     fontSize: 16,
-    fontWeight: '900',
+    fontFamily: 'Outfit_700Bold', fontWeight: '900',
   },
   fieldSeverity: {
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'Outfit_700Bold', fontWeight: '900',
   },
   fieldMeta: {
     color: '#4b5563',
     fontSize: 14,
-    fontWeight: '800',
+    fontFamily: 'Outfit_700Bold', fontWeight: '800',
     marginTop: 5,
   },
   fieldReason: {
     color: '#6b7280',
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
     lineHeight: 18,
     marginTop: 6,
   },
   stateCard: {
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderColor: '#edf0ed',
+    borderColor: '#eef0ef',
     borderRadius: 17,
     borderWidth: 1,
     paddingHorizontal: 18,
@@ -489,12 +489,12 @@ const styles = StyleSheet.create({
   stateTitle: {
     color: '#111827',
     fontSize: 17,
-    fontWeight: '900',
+    fontFamily: 'Outfit_700Bold', fontWeight: '900',
   },
   stateDetail: {
     color: '#6b7280',
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
     marginTop: 8,
     textAlign: 'center',
   },

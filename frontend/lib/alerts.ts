@@ -296,7 +296,7 @@ function formatDistance(distance: number | null): string {
     return 'Distance unavailable';
   }
   const rounded = distance < 10 ? Math.round(distance * 10) / 10 : Math.round(distance);
-  return `${rounded} miles away`;
+  return `${rounded} mi away`;
 }
 
 function formatRadius(distance: number | null): string {
@@ -319,15 +319,7 @@ function formatDetected(date: Date): string {
 }
 
 function formatTime(date: Date): string {
-  const days = daysAgo(date);
-  const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  if (days === 0) {
-    return `Today, ${time}`;
-  }
-  if (days === 1) {
-    return `Yesterday, ${time}`;
-  }
-  return `${days} days ago`;
+  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
 function daysAgo(date: Date): number {

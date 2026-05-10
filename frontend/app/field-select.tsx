@@ -487,10 +487,10 @@ export default function FieldSelectScreen() {
         return {
           type: 'Feature',
           properties: {
-            fill: isSelected ? '#2563eb' : '#22c55e',
+            fill: isSelected ? '#2563eb' : '#3b82f6',
             'fill-opacity': isSelected ? 0.58 : 0.1,
             id: field.id,
-            stroke: isSelected ? '#93c5fd' : isActive ? '#60a5fa' : '#22c55e',
+            stroke: isSelected ? '#93c5fd' : isActive ? '#60a5fa' : '#93c5fd',
             'stroke-width': isSelected || isActive ? 2 : 1,
           },
           geometry: field.geometry,
@@ -714,7 +714,7 @@ export default function FieldSelectScreen() {
           <MaterialIcons name="lock-outline" size={32} color="#1a2e1a" />
           <Text style={styles.loginTitle}>Log in to use My Fields</Text>
           <Text style={styles.loginCopy}>Save fields and crop types to your farmer profile.</Text>
-          <Pressable style={styles.loginButton} onPress={() => router.push('/(auth)/sign-in')}>
+          <Pressable style={styles.loginButton} onPress={() => router.push('/(tabs)/profile')}>
             <Text style={styles.loginButtonText}>Log In</Text>
           </Pressable>
         </View>
@@ -1253,7 +1253,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     color: '#111827',
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
     marginTop: 10,
     paddingHorizontal: 14,
     paddingVertical: 13,
@@ -1278,7 +1278,7 @@ const styles = StyleSheet.create({
   cropMapLabelText: {
     color: '#111827',
     fontSize: 12,
-    fontWeight: '900',
+    fontFamily: 'Outfit_700Bold', fontWeight: '900',
     textAlign: 'center',
   },
   cropMapLabelTextActive: {
@@ -1310,13 +1310,13 @@ const styles = StyleSheet.create({
   closeButtonText: {
     color: '#6b7280',
     fontSize: 24,
-    fontWeight: '700',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
     lineHeight: 27,
   },
   errorText: {
     color: '#b91c1c',
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
     marginTop: 6,
   },
   emptyList: {
@@ -1327,7 +1327,7 @@ const styles = StyleSheet.create({
     paddingBottom: 80,
   },
   emptyListButton: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#71897b',
     borderRadius: 14,
     paddingHorizontal: 20,
     paddingVertical: 12,
@@ -1335,12 +1335,12 @@ const styles = StyleSheet.create({
   emptyListButtonText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '900',
+    fontFamily: 'Outfit_700Bold', fontWeight: '900',
   },
   emptyListTitle: {
     color: '#111827',
     fontSize: 17,
-    fontWeight: '900',
+    fontFamily: 'Outfit_700Bold', fontWeight: '900',
   },
   fieldStepper: {
     alignItems: 'center',
@@ -1393,18 +1393,18 @@ const styles = StyleSheet.create({
   stepperMeta: {
     color: '#6b7280',
     fontSize: 12,
-    fontWeight: '800',
+    fontFamily: 'Outfit_700Bold', fontWeight: '800',
     marginTop: 2,
   },
   stepperTitle: {
     color: '#111827',
     fontSize: 15,
-    fontWeight: '900',
+    fontFamily: 'Outfit_700Bold', fontWeight: '900',
     maxWidth: '100%',
   },
   loginButton: {
     alignItems: 'center',
-    backgroundColor: '#2563eb',
+    backgroundColor: '#71897b',
     borderRadius: 14,
     marginTop: 16,
     paddingHorizontal: 22,
@@ -1413,12 +1413,12 @@ const styles = StyleSheet.create({
   loginButtonText: {
     color: '#fff',
     fontSize: 15,
-    fontWeight: '900',
+    fontFamily: 'Outfit_700Bold', fontWeight: '900',
   },
   loginCopy: {
     color: '#4b5563',
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'Outfit_600SemiBold', fontWeight: '600',
     lineHeight: 20,
     marginTop: 6,
     textAlign: 'center',
@@ -1443,7 +1443,7 @@ const styles = StyleSheet.create({
   loginTitle: {
     color: '#111827',
     fontSize: 19,
-    fontWeight: '900',
+    fontFamily: 'Outfit_700Bold', fontWeight: '900',
     marginTop: 10,
     textAlign: 'center',
   },
@@ -1490,18 +1490,18 @@ const styles = StyleSheet.create({
   fieldListMeta: {
     color: '#6b7280',
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
     marginTop: 3,
   },
   fieldListTitle: {
     color: '#111827',
     fontSize: 16,
-    fontWeight: '900',
+    fontFamily: 'Outfit_700Bold', fontWeight: '900',
   },
   listError: {
     color: '#b91c1c',
     fontSize: 13,
-    fontWeight: '800',
+    fontFamily: 'Outfit_700Bold', fontWeight: '800',
     marginTop: 12,
   },
   listHeader: {
@@ -1513,7 +1513,7 @@ const styles = StyleSheet.create({
   listMeta: {
     color: '#6b7280',
     fontSize: 13,
-    fontWeight: '800',
+    fontFamily: 'Outfit_700Bold', fontWeight: '800',
     marginTop: 3,
   },
   listScreen: {
@@ -1524,7 +1524,7 @@ const styles = StyleSheet.create({
   listTitle: {
     color: '#111827',
     fontSize: 28,
-    fontWeight: '900',
+    fontFamily: 'Outfit_700Bold', fontWeight: '900',
   },
   map: {
     flex: 1,
@@ -1538,7 +1538,7 @@ const styles = StyleSheet.create({
   meta: {
     color: '#6b7280',
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
     marginTop: 2,
   },
   locationSuggestionCopy: {
@@ -1548,17 +1548,17 @@ const styles = StyleSheet.create({
   locationSuggestionDetail: {
     color: '#6b7280',
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
     marginTop: 3,
   },
   locationSuggestionEmpty: {
     color: '#6b7280',
     fontSize: 15,
-    fontWeight: '800',
+    fontFamily: 'Outfit_700Bold', fontWeight: '800',
   },
   locationSuggestionItem: {
     alignItems: 'center',
-    borderBottomColor: '#f0f3f0',
+    borderBottomColor: '#f1f2f1',
     borderBottomWidth: 1,
     flexDirection: 'row',
     gap: 12,
@@ -1569,11 +1569,11 @@ const styles = StyleSheet.create({
   locationSuggestionLabel: {
     color: '#111827',
     fontSize: 15,
-    fontWeight: '900',
+    fontFamily: 'Outfit_700Bold', fontWeight: '900',
   },
   locationSuggestions: {
     backgroundColor: '#fff',
-    borderColor: '#edf0ed',
+    borderColor: '#eef0ef',
     borderRadius: 17,
     borderWidth: 1,
     marginHorizontal: 24,
@@ -1587,7 +1587,7 @@ const styles = StyleSheet.create({
   searchBox: {
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderColor: '#edf0ed',
+    borderColor: '#eef0ef',
     borderRadius: 17,
     borderWidth: 1,
     flexDirection: 'row',
@@ -1604,7 +1604,7 @@ const styles = StyleSheet.create({
     color: '#111827',
     flex: 1,
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Outfit_600SemiBold', fontWeight: '600',
   },
   searchPanel: {
     left: 0,
@@ -1629,7 +1629,7 @@ const styles = StyleSheet.create({
   selectedIds: {
     color: '#14532d',
     fontSize: 12,
-    fontWeight: '800',
+    fontFamily: 'Outfit_700Bold', fontWeight: '800',
     marginTop: 6,
   },
   removeButton: {
@@ -1644,11 +1644,11 @@ const styles = StyleSheet.create({
   removeButtonText: {
     color: '#dc2626',
     fontSize: 14,
-    fontWeight: '800',
+    fontFamily: 'Outfit_700Bold', fontWeight: '800',
   },
   saveButton: {
     alignItems: 'center',
-    backgroundColor: '#16a34a',
+    backgroundColor: '#71897b',
     borderRadius: 12,
     flex: 1,
     justifyContent: 'center',
@@ -1660,7 +1660,7 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '900',
+    fontFamily: 'Outfit_700Bold', fontWeight: '900',
   },
   sheetActions: {
     flexDirection: 'row',
@@ -1675,7 +1675,7 @@ const styles = StyleSheet.create({
   sheetMeta: {
     color: '#6b7280',
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
     marginTop: 3,
   },
   statusRow: {
@@ -1685,14 +1685,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   statusText: {
-    color: '#1a2e1a',
+    color: '#2d4a3e',
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
   },
   title: {
-    color: '#1a2e1a',
+    color: '#2d4a3e',
     fontSize: 17,
-    fontWeight: '800',
+    fontFamily: 'Outfit_700Bold', fontWeight: '800',
   },
   toggleButton: {
     alignItems: 'center',
@@ -1702,6 +1702,6 @@ const styles = StyleSheet.create({
     width: 38,
   },
   toggleButtonActive: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#71897b',
   },
 });

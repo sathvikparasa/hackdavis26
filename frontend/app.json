@@ -39,7 +39,19 @@
           }
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Anticipate to use your camera to report pests."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Anticipate to choose pest photos from your library."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

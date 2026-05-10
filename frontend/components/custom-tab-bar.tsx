@@ -63,7 +63,7 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
               <MaterialIcons
                 name={tab.icon}
                 size={24}
-                color={isFocused ? '#1a2e1a' : '#9ca3af'}
+                color={isFocused ? '#2d4a3e' : '#9ca3af'}
               />
               <Text style={[styles.label, isFocused && styles.labelActive]}>
                 {tab.label}
@@ -100,11 +100,11 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 11,
     color: '#9ca3af',
-    fontWeight: '500',
+    fontFamily: 'Outfit_500Medium', fontWeight: '500',
   },
   labelActive: {
-    color: '#1a2e1a',
-    fontWeight: '700',
+    color: '#2d4a3e',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
   },
   centerWrapper: {
     flex: 1,
@@ -116,12 +116,12 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 29,
-    backgroundColor: '#1a2e1a',
+    backgroundColor: '#2d4a3e',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
     borderColor: '#fff',
-    shadowColor: '#1a2e1a',
+    shadowColor: '#2d4a3e',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 8,
