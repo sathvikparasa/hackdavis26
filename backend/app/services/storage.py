@@ -14,8 +14,8 @@ def upload_report_image(
     settings = get_settings()
     if not settings.supabase_url:
         raise RuntimeError("Missing SUPABASE_URL")
-    if not settings.supabase_service_role_key:
-        raise RuntimeError("Missing SUPABASE_SERVICE_ROLE_KEY")
+    if not settings.supabase_secret_key:
+        raise RuntimeError("Missing SUPABASE_SECRET_KEY")
 
     image_path = _build_image_path(filename)
     url = (
@@ -23,8 +23,8 @@ def upload_report_image(
         f"{settings.supabase_report_image_bucket}/{image_path}"
     )
     headers = {
-        "apikey": settings.supabase_service_role_key,
-        "Authorization": f"Bearer {settings.supabase_service_role_key}",
+        "apikey": settings.supabase_secret_key,
+        "Authorization": f"Bearer {settings.supabase_secret_key}",
         "Content-Type": mime_type,
         "x-upsert": "false",
     }
