@@ -224,10 +224,24 @@ def _stored_report_from_row(row) -> StoredReport:
         latitude=float(row[3]),
         longitude=float(row[4]),
         analysis=AnalysisResponse(
-            spread_methods=[SpreadMethod(method) for method in row[7] or []],
+            spread_methods=_spread_methods_from_db(row[7]),
             vulnerable_crop=[VulnerableCrop(**crop) for crop in vulnerable_crop],
             travel_distance=float(row[6] or 0),
             pest_name=row[1],
             confidence=float(row[5] or 0),
         ),
     )
+
+
+def _spread_methods_from_db(value) -> list[SpreadMethod]:
+    if value is None:
+        return []
+
+    if isinstance(value, str):
+        value = value.strip()
+        if value.startswith("{") and value.endswith("}"):
+            value = [item.strip().strip('"') for item in value[1:-1].split(",") if item.strip()]
+        else:
+            value = [value]
+
+    return [SpreadMethod(method) for method in value]
