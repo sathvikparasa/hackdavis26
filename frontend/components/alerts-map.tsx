@@ -2,6 +2,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AlertItem, AlertSeverity, projectAlerts } from '@/lib/alerts';
+import type { WindViewport } from '@/components/wind-particles';
 
 const severityColors: Record<AlertSeverity, string> = {
   High: '#dc3b3b',
@@ -15,14 +16,17 @@ export function AlertsMap({
   onSelect,
   onClearSelection,
   focusedLocation,
+  onRegionChangeComplete,
 }: {
   alerts: AlertItem[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   onClearSelection: () => void;
   focusedLocation: { latitude: number; longitude: number } | null;
+  onRegionChangeComplete?: (viewport: WindViewport) => void;
 }) {
   const projected = projectAlerts(alerts);
+  void onRegionChangeComplete;
 
   return (
     <Pressable style={styles.webMap} onPress={onClearSelection}>

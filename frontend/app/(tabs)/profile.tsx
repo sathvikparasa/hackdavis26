@@ -5,6 +5,7 @@ import React from 'react'
 import {
   Animated,
   Easing,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -251,6 +252,10 @@ export default function ProfilePage() {
 
   return (
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} style={{ backgroundColor: '#fff' }}>
+      {/* Icon + Logo */}
+      <Image source={require('@/assets/images/anticipate_icon.png')} style={styles.icon} />
+      <AnticipateLogoSvg width={170} height={72} style={styles.logo} />
+
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.avatarCircle}>
@@ -365,16 +370,27 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: 20,
-    paddingTop: 96,
+    paddingTop: 60,
     paddingBottom: 40,
     backgroundColor: '#fff',
     flexGrow: 1,
+    alignItems: 'stretch',
+  },
+  icon: {
+    width: 110,
+    height: 110,
+    alignSelf: 'center',
+    marginBottom: -34,
+  },
+  logo: {
+    alignSelf: 'center',
+    marginBottom: 2,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
-    marginBottom: 28,
+    marginBottom: 14,
   },
   avatarCircle: {
     width: 64, height: 64, borderRadius: 32,

@@ -4,6 +4,7 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import { AlertItem, AlertSeverity } from '@/lib/alerts';
+import type { WindViewport } from '@/components/wind-particles';
 
 const YOLO_REGION = {
   latitude: 38.6785,
@@ -61,12 +62,14 @@ function AlertsMapComponent({
   onSelect,
   onClearSelection,
   focusedLocation,
+  onRegionChangeComplete,
 }: {
   alerts: AlertItem[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   onClearSelection: () => void;
   focusedLocation: { latitude: number; longitude: number } | null;
+  onRegionChangeComplete?: (viewport: WindViewport) => void;
 }) {
   const mapRef = useRef<MapView>(null);
 
@@ -92,6 +95,14 @@ function AlertsMapComponent({
       style={StyleSheet.absoluteFill}
       initialRegion={YOLO_REGION}
       onPress={onClearSelection}
+      onRegionChangeComplete={(region) => {
+        onRegionChangeComplete?.({
+          latitude: region.latitude,
+          latitudeDelta: region.latitudeDelta,
+          longitude: region.longitude,
+          longitudeDelta: region.longitudeDelta,
+        });
+      }}
       showsUserLocation
       showsMyLocationButton
     >
@@ -127,7 +138,8 @@ export const AlertsMap = memo(
   (prev, next) =>
     prev.alerts === next.alerts &&
     prev.focusedLocation?.latitude === next.focusedLocation?.latitude &&
-    prev.focusedLocation?.longitude === next.focusedLocation?.longitude
+    prev.focusedLocation?.longitude === next.focusedLocation?.longitude &&
+    prev.onRegionChangeComplete === next.onRegionChangeComplete
 );
 
 export function EmptyMapMessage({ title, detail }: { title: string; detail?: string }) {

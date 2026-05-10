@@ -1,15 +1,25 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AlertsMap, EmptyMapMessage } from '@/components/alerts-map';
 import { ActiveFilterChips, AlertSearchControls } from '@/components/alert-list-view';
+import { WindOverlay, useWindData } from '@/components/wind-particles';
+import type { WindViewport } from '@/components/wind-particles';
 import { AlertItem, AlertSeverity } from '@/lib/alerts';
 
 const severityConfig: Record<AlertSeverity, { cardBg: string; accent: string }> = {
   High: { cardBg: 'rgba(186,26,26,0.04)', accent: '#ba1a1a' },
   Moderate: { cardBg: 'rgba(217,119,6,0.04)', accent: '#d97706' },
   Low: { cardBg: 'rgba(35,138,59,0.04)', accent: '#238a3b' },
+};
+
+const YOLO_VIEWPORT: WindViewport = {
+  latitude: 38.6785,
+  latitudeDelta: 0.45,
+  longitude: -121.9018,
+  longitudeDelta: 0.55,
 };
 
 type AlertMapViewProps = {
@@ -51,6 +61,9 @@ export function AlertMapView({
   setQuery,
   severities,
 }: AlertMapViewProps) {
+  const [windViewport, setWindViewport] = useState(YOLO_VIEWPORT);
+  const wind = useWindData(windViewport);
+
   return (
     <View style={styles.mapScreen}>
       <AlertsMap
@@ -59,7 +72,11 @@ export function AlertMapView({
         onSelect={onSelectAlert}
         onClearSelection={onClearSelection}
         focusedLocation={null}
+        onRegionChangeComplete={setWindViewport}
       />
+      <View pointerEvents="none" style={styles.windLayer}>
+        <WindOverlay viewport={windViewport} wind={wind ?? { speed: 5, deg: 270 }} />
+      </View>
 
       <View style={[styles.mapHeader, { paddingTop: headerTop }]}>
         <AlertSearchControls
@@ -237,5 +254,14 @@ const styles = StyleSheet.create({
   mapScreen: {
     backgroundColor: '#e5eee1',
     flex: 1,
+  },
+  windLayer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    elevation: 2,
+    zIndex: 2,
   },
 });
