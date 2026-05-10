@@ -1,29 +1,20 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AlertItem, AlertSeverity, fetchAlerts } from '@/lib/alerts';
+import { AlertListView } from '@/components/alert-list-view';
+import { AlertMapView } from '@/components/alert-map-view';
+import { AlertItem, fetchAlerts } from '@/lib/alerts';
 import { getFilterState, subscribeFilterState } from '@/lib/filter-store';
 import { useTutorial } from '@/lib/tutorial';
 
-const severityConfig: Record<AlertSeverity, { cardBg: string; accent: string }> = {
-  High:     { cardBg: 'rgba(186,26,26,0.04)',  accent: '#ba1a1a' },
-  Moderate: { cardBg: 'rgba(217,119,6,0.04)',  accent: '#d97706' },
-  Low:      { cardBg: 'rgba(35,138,59,0.04)',   accent: '#238a3b' },
-};
+type ViewMode = 'list' | 'map';
 
 export default function AlertsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { step, advance } = useTutorial();
 
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
@@ -31,6 +22,8 @@ export default function AlertsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState(getFilterState);
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [selectedMapAlertId, setSelectedMapAlertId] = useState<string | null>(null);
 
   useEffect(() => subscribeFilterState(setFilters), []);
 
@@ -67,379 +60,111 @@ export default function AlertsScreen() {
       }),
     [alerts, crops, pestTypes, query, severities]
   );
+  const selectedMapAlert = filteredAlerts.find((alert) => alert.id === selectedMapAlertId) ?? null;
+
+  function openFilter() {
+    router.push('/alert/filter');
+  }
+
+  function openAlert(alertId: string) {
+    if (step === 1) {
+      advance();
+    }
+    router.push(`/alert/${alertId}`);
+  }
+
+  function openMapAlert(alertId: string) {
+    setSelectedMapAlertId(alertId);
+    setViewMode('map');
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.feedSection}>
-          <Text style={styles.sectionHeading}>Alerts</Text>
+      {viewMode === 'list' ? (
+        <AlertListView
+          alerts={filteredAlerts}
+          crops={crops}
+          error={error}
+          hasActiveFilters={hasActiveFilters}
+          loading={loading}
+          onOpenAlert={openAlert}
+          onOpenFilter={openFilter}
+          onOpenMap={openMapAlert}
+          onRetry={loadAlerts}
+          pestTypes={pestTypes}
+          query={query}
+          setQuery={setQuery}
+          severities={severities}
+        />
+      ) : (
+        <AlertMapView
+          alerts={filteredAlerts}
+          allAlertsCount={alerts.length}
+          crops={crops}
+          error={error}
+          hasActiveFilters={hasActiveFilters}
+          headerTop={insets.top + 8}
+          loading={loading}
+          onClearSelection={() => setSelectedMapAlertId(null)}
+          onOpenAlert={openAlert}
+          onOpenFilter={openFilter}
+          onSelectAlert={setSelectedMapAlertId}
+          pestTypes={pestTypes}
+          query={query}
+          selectedAlert={selectedMapAlert}
+          selectedAlertId={selectedMapAlertId}
+          setQuery={setQuery}
+          severities={severities}
+        />
+      )}
 
-          {/* Search + Filter row */}
-          <View style={styles.searchRow}>
-            <View style={styles.searchBox}>
-              <MaterialIcons name="search" size={18} color="#9ca3af" />
-              <TextInput
-                placeholder="Search pests, crops..."
-                placeholderTextColor="#9ca3af"
-                style={styles.searchInput}
-                value={query}
-                onChangeText={setQuery}
-              />
-            </View>
-            <Pressable
-              style={[styles.filterBtn, hasActiveFilters && styles.filterBtnActive]}
-              onPress={() => router.push('/alert/filter')}
-            >
-              <MaterialIcons name="tune" size={18} color={hasActiveFilters ? '#fff' : '#4b5563'} />
-            </Pressable>
-          </View>
-
-          {/* Active filter chips */}
-          {hasActiveFilters && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsRow} contentContainerStyle={styles.chipsContent}>
-              {[...crops.filter(c => c !== 'All Crops'), ...pestTypes.filter(p => p !== 'All Pests'), ...severities.filter(s => s !== 'All')].map((chip) => (
-                <View key={chip} style={styles.chip}>
-                  <Text style={styles.chipText}>{chip}</Text>
-                </View>
-              ))}
-            </ScrollView>
-          )}
-
-          <View style={styles.list}>
-            {loading ? (
-              <StateMessage title="Loading alerts…" />
-            ) : error ? (
-              <StateMessage title="Unable to load alerts" detail={error} action="Retry" onPress={loadAlerts} />
-            ) : filteredAlerts.length === 0 ? (
-              <StateMessage title="No alerts found" detail="New public reports will appear here." />
-            ) : (
-              filteredAlerts.map((alert) => (
-                <AlertCard
-                  key={alert.id}
-                  alert={alert}
-                  onPress={() => { if (step === 1) advance(); router.push(`/alert/${alert.id}`); }}
-                  onViewMap={() => router.push({ pathname: '/(tabs)/pest-map', params: { alertId: alert.id } })}
-                />
-              ))
-            )}
-          </View>
-        </View>
-      </ScrollView>
+      <View style={[styles.fixedViewToggle, { top: insets.top + 18 }]}>
+        <Pressable
+          style={[styles.toggleButton, viewMode === 'list' && styles.toggleButtonActive]}
+          onPress={() => setViewMode('list')}
+        >
+          <MaterialIcons name="format-list-bulleted" size={19} color={viewMode === 'list' ? '#fff' : '#6b7280'} />
+        </Pressable>
+        <Pressable
+          style={[styles.toggleButton, viewMode === 'map' && styles.toggleButtonActive]}
+          onPress={() => setViewMode('map')}
+        >
+          <MaterialIcons name="map" size={19} color={viewMode === 'map' ? '#fff' : '#6b7280'} />
+        </Pressable>
+      </View>
     </SafeAreaView>
   );
 }
 
-function pestTypeIcon(type: AlertItem['type']): keyof typeof MaterialIcons.glyphMap {
-  if (type === 'Fungi') return 'scatter-plot';
-  if (type === 'Weeds') return 'yard';
-  if (type === 'Nematodes') return 'blur-on';
-  return 'bug-report';
-}
-
-function AlertCard({ alert, onPress, onViewMap }: { alert: AlertItem; onPress: () => void; onViewMap: () => void }) {
-  const cfg = severityConfig[alert.severity];
-
-  const affectingCrops = [
-    ...new Set(
-      alert.affectedFields.length > 0
-        ? alert.affectedFields.map((f) => f.crop)
-        : alert.vulnerableCropNames.length > 0
-          ? alert.vulnerableCropNames
-          : ['Unknown vulnerable crops']
-    ),
-  ]
-    .slice(0, 2)
-    .join(', ');
-
-  return (
-    <Pressable style={[styles.card, { backgroundColor: cfg.cardBg }]} onPress={onPress}>
-      <View style={styles.cardInner}>
-        {/* Severity bar */}
-        <View style={[styles.severityBar, { backgroundColor: cfg.accent }]} />
-
-        {/* Image */}
-        <View style={styles.pestImageBox}>
-          {alert.imageUrl ? (
-            <Image source={{ uri: alert.imageUrl }} style={styles.pestImage} contentFit="cover" />
-          ) : (
-            <View style={[styles.pestImagePlaceholder, { backgroundColor: cfg.cardBg }]}>
-              <MaterialIcons name={pestTypeIcon(alert.type)} size={30} color={cfg.accent} />
-            </View>
-          )}
-        </View>
-
-        {/* Content */}
-        <View style={styles.cardContent}>
-          <Text style={styles.cardTitle} numberOfLines={2}>{alert.pest}</Text>
-          <Text style={styles.cropLabel}>{alert.vulnerableCropLabel}</Text>
-          <View style={styles.metaRow}>
-            <View style={styles.metaItem}>
-              <MaterialIcons name="place" size={12} color="#9ca3af" />
-              <Text style={styles.metaText} numberOfLines={1}>{alert.distance}</Text>
-            </View>
-            <Text style={styles.metaDot}>·</Text>
-            <View style={styles.metaItem}>
-              <MaterialIcons name="access-time" size={12} color="#9ca3af" />
-              <Text style={styles.metaText} numberOfLines={1}>{alert.time}</Text>
-            </View>
-            <Text style={styles.metaDot}>·</Text>
-            <View style={styles.metaItem}>
-              <MaterialIcons name="radio-button-unchecked" size={12} color="#9ca3af" />
-              <Text style={styles.metaText} numberOfLines={1}>{alert.travelDistance}</Text>
-            </View>
-          </View>
-          <View style={[styles.cardFooter, { borderTopColor: cfg.accent + '40' }]}>
-            <Text style={styles.affectingText} numberOfLines={1}>
-              Affecting: <Text style={styles.affectingCrop}>{affectingCrops}</Text>
-            </Text>
-            <Pressable style={styles.viewMapBtn} onPress={(e) => { e.stopPropagation?.(); onViewMap(); }}>
-              <Text style={styles.viewMapText}>Map</Text>
-              <MaterialIcons name="chevron-right" size={13} color="#2d4a3e" />
-            </Pressable>
-          </View>
-        </View>
-      </View>
-    </Pressable>
-  );
-}
-
-function StateMessage({
-  title, detail, action, onPress,
-}: {
-  title: string; detail?: string; action?: string; onPress?: () => void;
-}) {
-  return (
-    <View style={styles.stateCard}>
-      <Text style={styles.stateTitle}>{title}</Text>
-      {detail ? <Text style={styles.stateDetail}>{detail}</Text> : null}
-      {action ? (
-        <Pressable onPress={onPress} style={styles.stateButton}>
-          <Text style={styles.stateButtonText}>{action}</Text>
-        </Pressable>
-      ) : null}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
+  fixedViewToggle: {
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderColor: '#e5e7eb',
+    borderRadius: 17,
+    borderWidth: 1,
+    flexDirection: 'row',
+    padding: 4,
+    position: 'absolute',
+    right: 18,
+    shadowColor: '#111827',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    zIndex: 11,
+  },
   safe: {
     flex: 1,
     backgroundColor: '#fafafa',
   },
-  content: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 120,
-    maxWidth: 600,
-    alignSelf: 'center',
-    width: '100%',
-  },
-  feedSection: {
-    marginTop: 20,
-    gap: 14,
-  },
-  sectionHeading: {
-    color: '#111827',
-    fontSize: 28,
-    fontFamily: 'Outfit_700Bold', fontWeight: '800',
-    letterSpacing: -0.5,
-  },
-  searchRow: {
-    flexDirection: 'row',
-    gap: 10,
+  toggleButton: {
     alignItems: 'center',
-  },
-  searchBox: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    height: 48,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: '#111827',
-    fontFamily: 'Outfit_400Regular', fontWeight: '400',
-  },
-  filterBtn: {
-    alignItems: 'center',
+    borderRadius: 13,
+    height: 38,
     justifyContent: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    width: 48,
-    height: 48,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    width: 38,
   },
-  filterBtnActive: {
-    backgroundColor: '#2d4a3e',
-    borderColor: '#2d4a3e',
-  },
-  chipsRow: {
-    marginTop: -4,
-  },
-  chipsContent: {
-    gap: 6,
-    flexDirection: 'row',
-  },
-  chip: {
-    backgroundColor: '#2d4a3e',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-  },
-  chipText: {
-    color: '#fff',
-    fontSize: 12,
-    fontFamily: 'Outfit_700Bold', fontWeight: '700',
-  },
-  list: {
-    gap: 12,
-  },
-  card: {
-    borderColor: '#e5e7eb',
-    borderWidth: 1,
-    borderRadius: 14,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  cardInner: {
-    flexDirection: 'row',
-    height: 120,
-  },
-  severityBar: {
-    width: 7,
-    height: '100%',
-  },
-  pestImageBox: {
-    width: 96,
-    height: 120,
-  },
-  pestImage: {
-    width: 96,
-    height: 120,
-  },
-  pestImagePlaceholder: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardContent: {
-    flex: 1,
-    padding: 14,
-    gap: 5,
-    justifyContent: 'center',
-  },
-  cardTitle: {
-    color: '#111827',
-    fontSize: 17,
-    fontFamily: 'Outfit_700Bold', fontWeight: '700',
-    lineHeight: 22,
-  },
-  cropLabel: {
-    color: '#9ca3af',
-    fontSize: 12,
-    fontFamily: 'Outfit_400Regular', fontWeight: '400',
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    flexShrink: 1,
-  },
-  metaText: {
-    color: '#9ca3af',
-    fontSize: 12,
-    fontFamily: 'Outfit_400Regular', fontWeight: '400',
-    flexShrink: 1,
-  },
-  metaDot: {
-    color: '#d1d5db',
-    fontSize: 12,
-  },
-  cardFooter: {
-    borderTopWidth: 1,
-    paddingTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  affectingText: {
-    color: '#6b7280',
-    fontSize: 13,
-    fontFamily: 'Outfit_400Regular', fontWeight: '400',
-  },
-  affectingCrop: {
-    color: '#374151',
-    fontFamily: 'Outfit_700Bold', fontWeight: '700',
-  },
-  viewMapBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  viewMapText: {
-    color: '#2d4a3e',
-    fontSize: 13,
-    fontFamily: 'Outfit_700Bold', fontWeight: '700',
-  },
-  stateCard: {
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderColor: '#e5e7eb',
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 18,
-    paddingVertical: 22,
-  },
-  stateTitle: {
-    color: '#111827',
-    fontSize: 16,
-    fontFamily: 'Outfit_700Bold', fontWeight: '800',
-  },
-  stateDetail: {
-    color: '#9ca3af',
-    fontSize: 13,
-    fontFamily: 'Outfit_400Regular', fontWeight: '400',
-    marginTop: 6,
-    textAlign: 'center',
-  },
-  stateButton: {
-    borderColor: '#e5e7eb',
-    borderRadius: 10,
-    borderWidth: 1,
-    marginTop: 14,
-    paddingHorizontal: 20,
-    paddingVertical: 9,
-  },
-  stateButtonText: {
-    color: '#2d4a3e',
-    fontSize: 14,
-    fontFamily: 'Outfit_700Bold', fontWeight: '700',
+  toggleButtonActive: {
+    backgroundColor: '#71897b',
   },
 });
