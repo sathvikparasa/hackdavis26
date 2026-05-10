@@ -1,5 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import type { Geometry } from 'geojson';
 
 import { AlertItem, AlertSeverity, projectAlerts } from '@/lib/alerts';
 
@@ -11,16 +12,26 @@ const severityColors: Record<AlertSeverity, string> = {
 
 export function AlertsMap({
   alerts,
+  fields: _fields,
   selectedId,
   onSelect,
   onClearSelection,
   focusedLocation,
+  centerButtonTop: _centerButtonTop,
+  layersControlBottom: _layersControlBottom,
 }: {
   alerts: AlertItem[];
+  fields: {
+    crop: string | null;
+    geometry: Geometry;
+    id: number;
+  }[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   onClearSelection: () => void;
   focusedLocation: { latitude: number; longitude: number } | null;
+  centerButtonTop?: number;
+  layersControlBottom?: number;
 }) {
   const projected = projectAlerts(alerts);
 

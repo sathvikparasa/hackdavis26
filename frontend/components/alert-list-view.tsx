@@ -103,7 +103,7 @@ export function AlertSearchControls({
       <View style={styles.searchBox}>
         <MaterialIcons name="search" size={18} color="#9ca3af" />
         <TextInput
-          placeholder="Search pests, crops..."
+          placeholder="Search"
           placeholderTextColor="#9ca3af"
           style={styles.searchInput}
           value={query}
