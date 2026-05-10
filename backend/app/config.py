@@ -13,8 +13,8 @@ load_dotenv(BACKEND_ROOT / ".env")
 @dataclass(frozen=True)
 class Settings:
     gemini_api_key: Optional[str] = None
-    gemini_vision_model: str = "gemini-2.5-flash"
-    gemini_analysis_model: str = "gemini-2.5-flash"
+    gemini_vision_model: str = "gemini-3-flash-preview"
+    gemini_analysis_model: str = "gemini-3-flash-preview"
     google_embed_model: str = "gemini-embedding-001"
     google_embed_dimensions: int = 768
     ipm_match_count: int = 5
@@ -29,8 +29,8 @@ class Settings:
 def get_settings() -> Settings:
     return Settings(
         gemini_api_key=os.getenv("GEMINI_API_KEY"),
-        gemini_vision_model=os.getenv("GEMINI_VISION_MODEL", "gemini-2.5-flash"),
-        gemini_analysis_model=os.getenv("GEMINI_ANALYSIS_MODEL", "gemini-2.5-flash"),
+        gemini_vision_model=os.getenv("GEMINI_VISION_MODEL", "gemini-3-flash-preview"),
+        gemini_analysis_model=os.getenv("GEMINI_ANALYSIS_MODEL", "gemini-3-flash-preview"),
         google_embed_model=os.getenv("GOOGLE_EMBED_MODEL", "gemini-embedding-001"),
         google_embed_dimensions=int(os.getenv("GOOGLE_EMBED_DIMENSIONS", "768")),
         ipm_match_count=int(os.getenv("IPM_MATCH_COUNT", "5")),

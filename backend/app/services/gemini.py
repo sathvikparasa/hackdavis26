@@ -37,6 +37,12 @@ SEARCH_IPM_TOOL = types.Tool(
 )
 
 
+def _thinking_config(model: str) -> types.ThinkingConfig:
+    if model.startswith("gemini-3"):
+        return types.ThinkingConfig(thinking_level="minimal", include_thoughts=False)
+    return types.ThinkingConfig(thinking_budget=0, include_thoughts=False)
+
+
 def _client() -> genai.Client:
     settings = get_settings()
     if not settings.gemini_api_key:
@@ -77,6 +83,7 @@ def identify_pest(
             contents=messages,
             config=types.GenerateContentConfig(
                 temperature=0.2,
+                thinking_config=_thinking_config(settings.gemini_vision_model),
                 tools=[SEARCH_IPM_TOOL],
                 tool_config=types.ToolConfig(
                     function_calling_config=types.FunctionCallingConfig(
@@ -129,6 +136,7 @@ def identify_pest(
         contents=messages,
         config=types.GenerateContentConfig(
             temperature=0.1,
+            thinking_config=_thinking_config(settings.gemini_vision_model),
             response_mime_type="application/json",
             response_schema=PestIdentification,
         ),
@@ -177,6 +185,7 @@ def synthesize_analysis(
             contents=messages,
             config=types.GenerateContentConfig(
                 temperature=0.2,
+                thinking_config=_thinking_config(settings.gemini_analysis_model),
                 tools=[SEARCH_IPM_TOOL],
                 tool_config=types.ToolConfig(
                     function_calling_config=types.FunctionCallingConfig(
@@ -239,6 +248,7 @@ def synthesize_analysis(
         contents=messages,
         config=types.GenerateContentConfig(
             temperature=0.1,
+            thinking_config=_thinking_config(settings.gemini_analysis_model),
             response_mime_type="application/json",
             response_schema=AnalysisResponse,
         ),
