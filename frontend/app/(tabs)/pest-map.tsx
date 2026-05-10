@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -86,9 +86,10 @@ const localLocationSuggestions: LocationSuggestion[] = [
 export default function PestMapScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { alertId } = useLocalSearchParams<{ alertId?: string }>();
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [sheetExpanded, setSheetExpanded] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(alertId ?? null);
+  const [sheetExpanded, setSheetExpanded] = useState(!!alertId);
   const [openDropdown, setOpenDropdown] = useState<'crop' | 'pest' | 'severity' | null>(null);
   const [crop, setCrop] = useState('All Crops');
   const [pestType, setPestType] = useState('All Pests');

@@ -495,7 +495,7 @@ export default function FieldSelectScreen() {
           <MaterialIcons name="lock-outline" size={32} color="#1a2e1a" />
           <Text style={styles.loginTitle}>Log in to use My Fields</Text>
           <Text style={styles.loginCopy}>Save fields and crop types to your farmer profile.</Text>
-          <Pressable style={styles.loginButton} onPress={() => router.push('/(auth)/sign-in')}>
+          <Pressable style={styles.loginButton} onPress={() => router.push('/(tabs)/profile')}>
             <Text style={styles.loginButtonText}>Log In</Text>
           </Pressable>
         </View>

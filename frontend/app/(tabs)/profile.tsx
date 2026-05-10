@@ -2,6 +2,8 @@ import { useAuth, useClerk, useSignIn, useSignUp, useUser } from '@clerk/expo'
 import { type Href, useRouter } from 'expo-router'
 import React from 'react'
 import {
+  Animated,
+  Easing,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,14 +14,34 @@ import {
   View,
 } from 'react-native'
 
+import LoginSvg from '@/assets/illustrations/login.svg'
+import SignUpSvg from '@/assets/illustrations/sign-up.svg'
+import MfaSvg from '@/assets/illustrations/mfa.svg'
+import AnticipateLogoSvg from '@/anticipate_logo.svg'
 import { upsertProfile } from '@/lib/supabase'
 
 const DIGIT_COUNT = 6
+
+function useFloatAnim() {
+  const anim = React.useRef(new Animated.Value(0)).current
+  React.useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(anim, { toValue: -12, duration: 2200, useNativeDriver: true, easing: Easing.inOut(Easing.sin) }),
+        Animated.timing(anim, { toValue: 0,   duration: 2200, useNativeDriver: true, easing: Easing.inOut(Easing.sin) }),
+      ])
+    )
+    loop.start()
+    return () => loop.stop()
+  }, [anim])
+  return anim
+}
 
 function AuthForm() {
   const { signIn, fetchStatus: signInStatus } = useSignIn()
   const { signUp, fetchStatus: signUpStatus } = useSignUp()
   const router = useRouter()
+  const floatY = useFloatAnim()
 
   const [mode, setMode] = React.useState<'signIn' | 'signUp'>('signIn')
   const [name, setName] = React.useState('')
@@ -81,8 +103,12 @@ function AuthForm() {
 
   if (pendingVerification) {
     return (
-      <ScrollView contentContainerStyle={styles.authContainer} keyboardShouldPersistTaps="handled">
-        <Text style={styles.appTitle}>ANTICIPATE</Text>
+      <View style={styles.authContainer}>
+        <Animated.View style={[styles.illustration, { transform: [{ translateY: floatY }] }]} pointerEvents="none">
+          <MfaSvg width={150} height={107} />
+        </Animated.View>
+
+        <AnticipateLogoSvg width={160} height={67} style={{ marginBottom: -8 }} />
         <Text style={styles.authTitle}>Check your email</Text>
         <Text style={styles.authSub}>We sent a 6-digit code to {email}</Text>
 
@@ -117,14 +143,18 @@ function AuthForm() {
         <Pressable onPress={() => signUp.verifications.sendEmailCode()}>
           <Text style={styles.link}>Resend code</Text>
         </Pressable>
-      </ScrollView>
+      </View>
     )
   }
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.authContainer} keyboardShouldPersistTaps="handled">
-        <Text style={styles.appTitle}>ANTICIPATE</Text>
+        <Animated.View style={[styles.illustration, { transform: [{ translateY: floatY }] }]} pointerEvents="none">
+          {mode === 'signIn' ? <LoginSvg width={150} height={133} /> : <SignUpSvg width={150} height={115} />}
+        </Animated.View>
+
+        <AnticipateLogoSvg width={160} height={67} style={{ marginBottom: -8 }} />
         <Text style={styles.authTitle}>{mode === 'signIn' ? 'Welcome back!' : 'Create Account'}</Text>
         <Text style={styles.authSub}>{mode === 'signIn' ? 'Sign in to continue' : 'Sign up to get started'}</Text>
 
@@ -224,7 +254,84 @@ export default function ProfilePage() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f1a0f' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  text: { color: '#4ade80', fontSize: 18, fontWeight: '600' },
-});
+  authContainer: {
+    flexGrow: 1,
+    backgroundColor: '#f7faf5',
+    paddingHorizontal: 32,
+    paddingTop: 96,
+    paddingBottom: 24,
+    gap: 10,
+    alignItems: 'center',
+  },
+  illustration: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginBottom: 4,
+  },
+  authTitle: { fontWeight: '700', fontSize: 26, color: '#191c1a', lineHeight: 32, alignSelf: 'flex-start' },
+  authSub: { fontWeight: '500', fontSize: 14, color: '#424844', alignSelf: 'flex-start' },
+  fieldGroup: { gap: 6, width: '100%' },
+  label: { fontWeight: '500', fontSize: 14, color: '#374151' },
+  input: {
+    backgroundColor: '#ecefea',
+    borderWidth: 1,
+    borderColor: '#c2c8c2',
+    borderRadius: 12,
+    paddingHorizontal: 17,
+    paddingVertical: 16,
+    fontSize: 16,
+    color: '#191c1a',
+  },
+  btn: {
+    backgroundColor: '#71897b',
+    borderRadius: 12,
+    paddingVertical: 15,
+    alignItems: 'center',
+    marginTop: 4,
+    width: '100%',
+  },
+  btnDisabled: { opacity: 0.55 },
+  btnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  link: { color: '#546522', fontWeight: '600', fontSize: 14, textAlign: 'center' },
+  error: { color: '#d32f2f', fontSize: 13 },
+  digitRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 4 },
+  digitGap: { width: 16 },
+  digitInput: {
+    width: 44, height: 58,
+    backgroundColor: '#f1f4ef',
+    borderBottomWidth: 2, borderBottomColor: '#c2c8c2',
+    borderTopLeftRadius: 8, borderTopRightRadius: 8,
+    fontSize: 24, color: '#191c1a', textAlign: 'center',
+  },
+  container: {
+    padding: 24, paddingTop: 60, alignItems: 'center',
+    backgroundColor: '#f7f7f7', minHeight: '100%',
+  },
+  avatarCircle: {
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: '#4caf50', alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+  },
+  avatarText: { color: '#fff', fontSize: 28, fontWeight: '700' },
+  name: { fontSize: 22, fontWeight: '700', color: '#1a1a1a', marginBottom: 4 },
+  email: { fontSize: 14, color: '#666', marginBottom: 32 },
+  card: {
+    width: '100%', backgroundColor: '#fff', borderRadius: 12,
+    padding: 16, marginBottom: 24,
+    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+  },
+  cardLabel: {
+    fontSize: 12, fontWeight: '700', color: '#999',
+    textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12,
+  },
+  row: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#eee',
+  },
+  rowLabel: { color: '#444', fontSize: 15 },
+  rowValue: { color: '#888', fontSize: 15 },
+  signOutButton: {
+    width: '100%', borderWidth: 1.5, borderColor: '#d32f2f',
+    borderRadius: 10, paddingVertical: 14, alignItems: 'center',
+  },
+  signOutText: { color: '#d32f2f', fontWeight: '700', fontSize: 15 },
+})
