@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
   metricLabel: {
     color: '#6b7280',
     fontSize: 12,
-    fontFamily: 'Outfit_700Bold', fontWeight: '800',
+    fontFamily: 'Outfit_500Medium', fontWeight: '500',
     marginTop: 10,
   },
   metricValue: {
@@ -406,13 +406,13 @@ const styles = StyleSheet.create({
     color: '#374151',
     flex: 1,
     fontSize: 15,
-    fontFamily: 'Outfit_700Bold', fontWeight: '700',
+    fontFamily: 'Outfit_400Regular', fontWeight: '400',
     lineHeight: 22,
   },
   emptyText: {
     color: '#6b7280',
     fontSize: 15,
-    fontFamily: 'Outfit_700Bold', fontWeight: '700',
+    fontFamily: 'Outfit_400Regular', fontWeight: '400',
     lineHeight: 22,
   },
   impactBlock: {
@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
   durationText: {
     color: '#6b7280',
     fontSize: 14,
-    fontFamily: 'Outfit_700Bold', fontWeight: '800',
+    fontFamily: 'Outfit_400Regular', fontWeight: '400',
   },
   fieldRow: {
     alignItems: 'flex-start',
@@ -467,13 +467,13 @@ const styles = StyleSheet.create({
   fieldMeta: {
     color: '#4b5563',
     fontSize: 14,
-    fontFamily: 'Outfit_700Bold', fontWeight: '800',
+    fontFamily: 'Outfit_400Regular', fontWeight: '400',
     marginTop: 5,
   },
   fieldReason: {
     color: '#6b7280',
     fontSize: 13,
-    fontFamily: 'Outfit_700Bold', fontWeight: '700',
+    fontFamily: 'Outfit_400Regular', fontWeight: '400',
     lineHeight: 18,
     marginTop: 6,
   },
@@ -494,7 +494,7 @@ const styles = StyleSheet.create({
   stateDetail: {
     color: '#6b7280',
     fontSize: 14,
-    fontFamily: 'Outfit_700Bold', fontWeight: '700',
+    fontFamily: 'Outfit_400Regular', fontWeight: '400',
     marginTop: 8,
     textAlign: 'center',
   },

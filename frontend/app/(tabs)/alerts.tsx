@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: '#111827',
-    fontFamily: 'Outfit_500Medium', fontWeight: '500',
+    fontFamily: 'Outfit_400Regular', fontWeight: '400',
   },
   filterBtn: {
     alignItems: 'center',
@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
   cropLabel: {
     color: '#9ca3af',
     fontSize: 12,
-    fontFamily: 'Outfit_600SemiBold', fontWeight: '600',
+    fontFamily: 'Outfit_400Regular', fontWeight: '400',
   },
   metaRow: {
     flexDirection: 'row',
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
   metaText: {
     color: '#9ca3af',
     fontSize: 12,
-    fontFamily: 'Outfit_600SemiBold', fontWeight: '600',
+    fontFamily: 'Outfit_400Regular', fontWeight: '400',
     flexShrink: 1,
   },
   metaDot: {
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
   affectingText: {
     color: '#6b7280',
     fontSize: 13,
-    fontFamily: 'Outfit_600SemiBold', fontWeight: '600',
+    fontFamily: 'Outfit_400Regular', fontWeight: '400',
   },
   affectingCrop: {
     color: '#374151',
@@ -437,7 +437,7 @@ const styles = StyleSheet.create({
   stateDetail: {
     color: '#9ca3af',
     fontSize: 13,
-    fontFamily: 'Outfit_600SemiBold', fontWeight: '600',
+    fontFamily: 'Outfit_400Regular', fontWeight: '400',
     marginTop: 6,
     textAlign: 'center',
   },

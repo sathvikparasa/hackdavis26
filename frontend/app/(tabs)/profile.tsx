@@ -187,8 +187,9 @@ function AuthForm() {
         </Pressable>
 
         <Pressable onPress={() => { setMode(mode === 'signIn' ? 'signUp' : 'signIn'); setError('') }}>
-          <Text style={styles.link}>
-            {mode === 'signIn' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+          <Text style={styles.linkBase}>
+            {mode === 'signIn' ? "Don't have an account? " : 'Already have an account? '}
+            <Text style={styles.linkAction}>{mode === 'signIn' ? 'Sign up' : 'Sign in'}</Text>
           </Text>
         </Pressable>
 
@@ -220,12 +221,21 @@ export default function ProfilePage() {
   const router = useRouter()
   const [reports, setReports] = React.useState<UserReport[]>([])
   const [reportsLoading, setReportsLoading] = React.useState(true)
+  const [profileName, setProfileName] = React.useState<string | null>(null)
 
   React.useEffect(() => {
-    if (user) {
-      const email = user.emailAddresses[0]?.emailAddress ?? ''
-      upsertProfile(user.id, email, user.fullName ?? undefined).catch(console.error)
-    }
+    if (!user) return
+    const email = user.emailAddresses[0]?.emailAddress ?? ''
+    const clerkName = user.fullName ?? undefined
+    upsertProfile(user.id, email, clerkName).catch(console.error)
+    // Fetch stored name from profiles table (set during sign-up)
+    supabase
+      .from('profiles')
+      .select('name')
+      .eq('clerk_user_id', user.id)
+      .single()
+      .then(({ data }) => { if (data?.name) setProfileName(data.name) })
+      .catch(console.error)
   }, [user?.id])
 
   React.useEffect(() => {
@@ -248,7 +258,7 @@ export default function ProfilePage() {
   if (!isSignedIn) return <AuthForm />
 
   const email = user?.emailAddresses[0]?.emailAddress ?? ''
-  const name = user?.fullName ?? user?.firstName ?? ''
+  const name = profileName ?? user?.fullName ?? user?.firstName ?? ''
   const initials = name
     ? name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
     : email.slice(0, 2).toUpperCase()
@@ -364,7 +374,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   authTitle: { fontFamily: 'Outfit_700Bold', fontWeight: '700', fontSize: 26, color: '#111827', lineHeight: 32, alignSelf: 'flex-start' },
-  authSub: { fontFamily: 'Outfit_500Medium', fontWeight: '500', fontSize: 14, color: '#4b5563', alignSelf: 'flex-start' },
+  authSub: { fontFamily: 'Outfit_400Regular', fontWeight: '400', fontSize: 14, color: '#4b5563', alignSelf: 'flex-start' },
   fieldGroup: { gap: 6, width: '100%' },
   label: { fontFamily: 'Outfit_500Medium', fontWeight: '500', fontSize: 14, color: '#374151' },
   input: {
@@ -387,7 +397,8 @@ const styles = StyleSheet.create({
   },
   btnDisabled: { opacity: 0.55 },
   btnText: { color: '#fff', fontFamily: 'Outfit_700Bold', fontWeight: '700', fontSize: 16 },
-  link: { color: '#71897b', fontFamily: 'Outfit_600SemiBold', fontWeight: '600', fontSize: 14, textAlign: 'center' },
+  linkBase: { color: '#111827', fontFamily: 'Outfit_400Regular', fontWeight: '400', fontSize: 14, textAlign: 'center' },
+  linkAction: { color: '#71897b', fontFamily: 'Outfit_600SemiBold', fontWeight: '600' },
   error: { color: '#d32f2f', fontSize: 13 },
   digitRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 4 },
   digitGap: { width: 16 },
@@ -400,8 +411,8 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: 20,
-    paddingTop: 64,
-    paddingBottom: 120,
+    paddingTop: 96,
+    paddingBottom: 80,
     backgroundColor: '#fafafa',
   },
   header: {

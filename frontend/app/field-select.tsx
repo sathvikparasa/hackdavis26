@@ -1253,7 +1253,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     color: '#111827',
     fontSize: 16,
-    fontFamily: 'Outfit_700Bold', fontWeight: '700',
+    fontFamily: 'Outfit_400Regular', fontWeight: '400',
     marginTop: 10,
     paddingHorizontal: 14,
     paddingVertical: 13,
@@ -1316,7 +1316,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#b91c1c',
     fontSize: 12,
-    fontFamily: 'Outfit_700Bold', fontWeight: '700',
+    fontFamily: 'Outfit_500Medium', fontWeight: '500',
     marginTop: 6,
   },
   emptyList: {
@@ -1340,7 +1340,7 @@ const styles = StyleSheet.create({
   emptyListTitle: {
     color: '#111827',
     fontSize: 17,
-    fontFamily: 'Outfit_700Bold', fontWeight: '900',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
   },
   fieldStepper: {
     alignItems: 'center',
@@ -1393,7 +1393,7 @@ const styles = StyleSheet.create({
   stepperMeta: {
     color: '#6b7280',
     fontSize: 12,
-    fontFamily: 'Outfit_700Bold', fontWeight: '800',
+    fontFamily: 'Outfit_400Regular', fontWeight: '400',
     marginTop: 2,
   },
   stepperTitle: {
@@ -1418,7 +1418,7 @@ const styles = StyleSheet.create({
   loginCopy: {
     color: '#4b5563',
     fontSize: 14,
-    fontFamily: 'Outfit_600SemiBold', fontWeight: '600',
+    fontFamily: 'Outfit_400Regular', fontWeight: '400',
     lineHeight: 20,
     marginTop: 6,
     textAlign: 'center',
@@ -1443,7 +1443,7 @@ const styles = StyleSheet.create({
   loginTitle: {
     color: '#111827',
     fontSize: 19,
-    fontFamily: 'Outfit_700Bold', fontWeight: '900',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
     marginTop: 10,
     textAlign: 'center',
   },
@@ -1490,7 +1490,7 @@ const styles = StyleSheet.create({
   fieldListMeta: {
     color: '#6b7280',
     fontSize: 12,
-    fontFamily: 'Outfit_700Bold', fontWeight: '700',
+    fontFamily: 'Outfit_400Regular', fontWeight: '400',
     marginTop: 3,
   },
   fieldListTitle: {
@@ -1501,7 +1501,7 @@ const styles = StyleSheet.create({
   listError: {
     color: '#b91c1c',
     fontSize: 13,
-    fontFamily: 'Outfit_700Bold', fontWeight: '800',
+    fontFamily: 'Outfit_500Medium', fontWeight: '500',
     marginTop: 12,
   },
   listHeader: {
@@ -1513,7 +1513,7 @@ const styles = StyleSheet.create({
   listMeta: {
     color: '#6b7280',
     fontSize: 13,
-    fontFamily: 'Outfit_700Bold', fontWeight: '800',
+    fontFamily: 'Outfit_400Regular', fontWeight: '400',
     marginTop: 3,
   },
   listScreen: {
@@ -1538,7 +1538,7 @@ const styles = StyleSheet.create({
   meta: {
     color: '#6b7280',
     fontSize: 12,
-    fontFamily: 'Outfit_700Bold', fontWeight: '700',
+    fontFamily: 'Outfit_400Regular', fontWeight: '400',
     marginTop: 2,
   },
   locationSuggestionCopy: {
@@ -1548,13 +1548,13 @@ const styles = StyleSheet.create({
   locationSuggestionDetail: {
     color: '#6b7280',
     fontSize: 13,
-    fontFamily: 'Outfit_700Bold', fontWeight: '700',
+    fontFamily: 'Outfit_400Regular', fontWeight: '400',
     marginTop: 3,
   },
   locationSuggestionEmpty: {
     color: '#6b7280',
     fontSize: 15,
-    fontFamily: 'Outfit_700Bold', fontWeight: '800',
+    fontFamily: 'Outfit_500Medium', fontWeight: '500',
   },
   locationSuggestionItem: {
     alignItems: 'center',

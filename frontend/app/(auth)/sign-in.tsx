@@ -219,8 +219,9 @@ export default function SignInScreen() {
         </View>
 
         <Pressable onPress={() => { setMode(mode === 'signIn' ? 'signUp' : 'signIn'); setError('') }}>
-          <Text style={styles.link}>
-            {mode === 'signIn' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+          <Text style={styles.linkBase}>
+            {mode === 'signIn' ? "Don't have an account? " : 'Already have an account? '}
+            <Text style={styles.linkAction}>{mode === 'signIn' ? 'Sign up' : 'Sign in'}</Text>
           </Text>
         </Pressable>
 
@@ -260,7 +261,7 @@ const styles = StyleSheet.create({
     lineHeight: 36,
   },
   subheading: {
-    fontFamily: 'Outfit_500Medium', fontWeight: '500',
+    fontFamily: 'Outfit_400Regular', fontWeight: '400',
     fontSize: 16,
     color: '#4b5563',
     lineHeight: 24,
@@ -303,12 +304,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
   },
-  link: {
-    color: '#71897b',
-    fontFamily: 'Outfit_600SemiBold', fontWeight: '600',
+  linkBase: {
+    color: '#111827',
+    fontFamily: 'Outfit_400Regular', fontWeight: '400',
     fontSize: 14,
     textAlign: 'center',
     marginTop: 4,
+  },
+  linkAction: {
+    color: '#71897b',
+    fontFamily: 'Outfit_600SemiBold', fontWeight: '600',
   },
   error: { color: '#d32f2f', fontSize: 13 },
   mfaContent: {
