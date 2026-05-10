@@ -1,7 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import Swipeable from 'react-native-gesture-handler/Swipeable';
 
 import { AlertItem, AlertSeverity } from '@/lib/alerts';
 
@@ -17,7 +16,6 @@ type AlertListViewProps = {
   error: string | null;
   hasActiveFilters: boolean;
   loading: boolean;
-  onDelete: (alertId: string) => void;
   onOpenFilter: () => void;
   onOpenMap: (alertId: string) => void;
   onOpenAlert: (alertId: string) => void;
@@ -26,7 +24,6 @@ type AlertListViewProps = {
   query: string;
   setQuery: (query: string) => void;
   severities: string[];
-  userId: string | null;
 };
 
 export function AlertListView({
@@ -35,7 +32,6 @@ export function AlertListView({
   error,
   hasActiveFilters,
   loading,
-  onDelete,
   onOpenAlert,
   onOpenFilter,
   onOpenMap,
@@ -44,7 +40,6 @@ export function AlertListView({
   query,
   setQuery,
   severities,
-  userId,
 }: AlertListViewProps) {
   return (
     <ScrollView
@@ -81,8 +76,6 @@ export function AlertListView({
               <AlertCard
                 key={alert.id}
                 alert={alert}
-                isOwner={!!userId && alert.userId === userId}
-                onDelete={() => onDelete(alert.id)}
                 onPress={() => onOpenAlert(alert.id)}
                 onViewMap={() => onOpenMap(alert.id)}
               />
@@ -162,14 +155,10 @@ function pestTypeIcon(type: AlertItem['type']): keyof typeof MaterialIcons.glyph
 
 function AlertCard({
   alert,
-  isOwner,
-  onDelete,
   onPress,
   onViewMap,
 }: {
   alert: AlertItem;
-  isOwner: boolean;
-  onDelete: () => void;
   onPress: () => void;
   onViewMap: () => void;
 }) {
@@ -187,58 +176,47 @@ function AlertCard({
     .slice(0, 2)
     .join(', ');
 
-  const renderLeftActions = () => {
-    if (!isOwner) return null;
-    return (
-      <Pressable style={styles.deleteAction} onPress={onDelete}>
-        <MaterialIcons name="delete" size={22} color="#fff" />
-      </Pressable>
-    );
-  };
-
   return (
-    <Swipeable renderLeftActions={renderLeftActions} overshootLeft={false} friction={2}>
-      <Pressable style={[styles.card, { backgroundColor: cfg.cardBg }]} onPress={onPress}>
-        <View style={styles.cardInner}>
-          <View style={[styles.severityBar, { backgroundColor: cfg.accent }]} />
+    <Pressable style={[styles.card, { backgroundColor: cfg.cardBg }]} onPress={onPress}>
+      <View style={styles.cardInner}>
+        <View style={[styles.severityBar, { backgroundColor: cfg.accent }]} />
 
-          <View style={styles.pestImageBox}>
-            {alert.imageUrl ? (
-              <Image source={{ uri: alert.imageUrl }} style={styles.pestImage} contentFit="cover" />
-            ) : (
-              <View style={[styles.pestImagePlaceholder, { backgroundColor: cfg.cardBg }]}>
-                <MaterialIcons name={pestTypeIcon(alert.type)} size={30} color={cfg.accent} />
-              </View>
-            )}
+        <View style={styles.pestImageBox}>
+          {alert.imageUrl ? (
+            <Image source={{ uri: alert.imageUrl }} style={styles.pestImage} contentFit="cover" />
+          ) : (
+            <View style={[styles.pestImagePlaceholder, { backgroundColor: cfg.cardBg }]}>
+              <MaterialIcons name={pestTypeIcon(alert.type)} size={30} color={cfg.accent} />
+            </View>
+          )}
+        </View>
+
+        <View style={styles.cardContent}>
+          <Text style={styles.cardTitle} numberOfLines={2}>{alert.pest}</Text>
+          <Text style={styles.cropLabel}>{alert.vulnerableCropLabel}</Text>
+          <View style={styles.metaRow}>
+            <View style={styles.metaItem}>
+              <MaterialIcons name="place" size={12} color="#9ca3af" />
+              <Text style={styles.metaText} numberOfLines={1}>{alert.distance}</Text>
+            </View>
+            <Text style={styles.metaDot}>·</Text>
+            <View style={styles.metaItem}>
+              <MaterialIcons name="access-time" size={12} color="#9ca3af" />
+              <Text style={styles.metaText} numberOfLines={1}>{alert.time}</Text>
+            </View>
           </View>
-
-          <View style={styles.cardContent}>
-            <Text style={styles.cardTitle} numberOfLines={2}>{alert.pest}</Text>
-            <Text style={styles.cropLabel}>{alert.vulnerableCropLabel}</Text>
-            <View style={styles.metaRow}>
-              <View style={styles.metaItem}>
-                <MaterialIcons name="place" size={12} color="#9ca3af" />
-                <Text style={styles.metaText} numberOfLines={1}>{alert.distance}</Text>
-              </View>
-              <Text style={styles.metaDot}>·</Text>
-              <View style={styles.metaItem}>
-                <MaterialIcons name="access-time" size={12} color="#9ca3af" />
-                <Text style={styles.metaText} numberOfLines={1}>{alert.time}</Text>
-              </View>
-            </View>
-            <View style={[styles.cardFooter, { borderTopColor: `${cfg.accent}40` }]}>
-              <Text style={styles.affectingText} numberOfLines={1}>
-                Affecting: <Text style={styles.affectingCrop}>{affectingCrops}</Text>
-              </Text>
-              <Pressable style={styles.viewMapBtn} onPress={(event) => { event.stopPropagation?.(); onViewMap(); }}>
-                <Text style={styles.viewMapText}>Map</Text>
-                <MaterialIcons name="chevron-right" size={13} color="#2d4a3e" />
-              </Pressable>
-            </View>
+          <View style={[styles.cardFooter, { borderTopColor: `${cfg.accent}40` }]}>
+            <Text style={styles.affectingText} numberOfLines={1}>
+              Affecting: <Text style={styles.affectingCrop}>{affectingCrops}</Text>
+            </Text>
+            <Pressable style={styles.viewMapBtn} onPress={(event) => { event.stopPropagation?.(); onViewMap(); }}>
+              <Text style={styles.viewMapText}>Map</Text>
+              <MaterialIcons name="chevron-right" size={13} color="#2d4a3e" />
+            </Pressable>
           </View>
         </View>
-      </Pressable>
-    </Swipeable>
+      </View>
+    </Pressable>
   );
 }
 
@@ -334,14 +312,6 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     fontSize: 12,
     fontFamily: 'Outfit_400Regular', fontWeight: '400',
-  },
-  deleteAction: {
-    backgroundColor: '#dc2626',
-    borderRadius: 14,
-    width: 72,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
   },
   feedSection: {
     marginTop: 20,

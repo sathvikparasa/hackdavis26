@@ -749,7 +749,7 @@ export default function FieldSelectScreen() {
       {isLoaded && !isSignedIn ? (
         <View style={styles.loginGate}>
           <MaterialIcons name="lock-outline" size={32} color="#1a2e1a" />
-          <Text style={styles.loginTitle}>Log in to use My Fields</Text>
+          <Text style={styles.loginTitle}>Log in to use My Crops</Text>
           <Text style={styles.loginCopy}>Save fields and crop types to your farmer profile.</Text>
           <Pressable style={styles.loginButton} onPress={() => router.push('/(tabs)/profile')}>
             <Text style={styles.loginButtonText}>Log In</Text>
@@ -761,7 +761,7 @@ export default function FieldSelectScreen() {
         <View style={[styles.listScreen, { paddingTop: insets.top + 18 }]}>
           <View style={styles.listHeader}>
             <View>
-              <Text style={styles.listTitle}>My Fields</Text>
+              <Text style={styles.listTitle}>My Crops</Text>
               <Text style={styles.listMeta}>{savedFields.length} saved fields</Text>
             </View>
           </View>
@@ -990,7 +990,7 @@ export default function FieldSelectScreen() {
             <Text style={styles.stepperTitle} numberOfLines={1}>
               {activeSavedFieldIndex >= 0
                 ? cropByFieldId[savedFields[activeSavedFieldIndex].id] || 'Saved field'
-                : 'My Fields'}
+                : 'My Crops'}
             </Text>
             <Text style={styles.stepperMeta}>
               {activeSavedFieldIndex >= 0 ? activeSavedFieldIndex + 1 : savedFields.length} of {savedFields.length}
@@ -1397,7 +1397,7 @@ const styles = StyleSheet.create({
     paddingBottom: 80,
   },
   emptyListButton: {
-    backgroundColor: '#71897b',
+    backgroundColor: '#2d4a3e',
     borderRadius: 14,
     paddingHorizontal: 20,
     paddingVertical: 12,
@@ -1474,7 +1474,7 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     alignItems: 'center',
-    backgroundColor: '#71897b',
+    backgroundColor: '#2d4a3e',
     borderRadius: 14,
     marginTop: 16,
     paddingHorizontal: 22,
@@ -1718,7 +1718,7 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     alignItems: 'center',
-    backgroundColor: '#71897b',
+    backgroundColor: '#2d4a3e',
     borderRadius: 12,
     flex: 1,
     justifyContent: 'center',
@@ -1772,6 +1772,6 @@ const styles = StyleSheet.create({
     width: 38,
   },
   toggleButtonActive: {
-    backgroundColor: '#71897b',
+    backgroundColor: '#2d4a3e',
   },
 });

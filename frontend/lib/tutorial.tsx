@@ -60,7 +60,7 @@ export const STEP_CONFIG: Record<Exclude<TutorialStepId, -1>, StepConfig> = {
     cardPosition: 'top',
   },
   6: {
-    title: 'My Fields',
+    title: 'My Crops',
     body: "This is where you save your farm fields. Once saved, you'll receive push notifications whenever a pest is detected near your land.",
     cta: 'Next',
     isAction: false,
@@ -88,7 +88,7 @@ export const STEP_CONFIG: Record<Exclude<TutorialStepId, -1>, StepConfig> = {
   9: {
     // Save Crop panel is at the bottom — card goes to top
     title: 'Save a Field',
-    body: "Tap any field boundary on the map to select it. Enter your crop type in the panel that appears, then tap 'Save Crop' to add it to My Fields.",
+    body: "Tap any field boundary on the map to select it. Enter your crop type in the panel that appears, then tap 'Save Crop' to add it to My Crops.",
     cta: '',
     isAction: true,
     cardPosition: 'top',

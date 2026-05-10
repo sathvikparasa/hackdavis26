@@ -205,14 +205,6 @@ function AuthForm() {
   )
 }
 
-type UserReport = {
-  id: string
-  pest_name: string | null
-  crop_type: string | null
-  created_at: string | null
-  confidence: number | null
-}
-
 const SETTINGS = [
   { key: 'notifications', label: 'Notification Settings', icon: 'notifications-none' as const },
   { key: 'sources',       label: 'Data Sources',          icon: 'storage' as const },
@@ -226,8 +218,6 @@ export default function ProfilePage() {
   const { signOut } = useClerk()
   const router = useRouter()
   const { startTutorial } = useTutorial()
-  const [reports, setReports] = React.useState<UserReport[]>([])
-  const [reportsLoading, setReportsLoading] = React.useState(true)
   const [profileName, setProfileName] = React.useState<string | null>(null)
 
   React.useEffect(() => {
@@ -245,27 +235,6 @@ export default function ProfilePage() {
       .then(undefined, console.error)
   }, [user?.id])
 
-  React.useEffect(() => {
-    if (!user) return
-    const userId = user.id
-    setReportsLoading(true)
-    async function loadReports() {
-      try {
-        const { data } = await supabase
-          .from('reports')
-          .select('id, pest_name, crop_type, created_at, confidence')
-          .eq('clerk_user_id', userId)
-          .order('created_at', { ascending: false })
-          .limit(20)
-        setReports(data ?? [])
-      } finally {
-        setReportsLoading(false)
-      }
-    }
-
-    void loadReports()
-  }, [user?.id])
-
   if (!isLoaded) return (
     <View style={{ flex: 1, backgroundColor: '#fafafa', alignItems: 'center', justifyContent: 'center' }}>
       <Text style={{ fontFamily: 'Outfit_400Regular', color: '#9ca3af', fontSize: 14 }}>Loading…</Text>
@@ -281,7 +250,7 @@ export default function ProfilePage() {
   const memberSince = user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '—'
 
   return (
-    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} style={{ backgroundColor: '#fff' }}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.avatarCircle}>
@@ -292,24 +261,6 @@ export default function ProfilePage() {
           <Text style={styles.email}>{email}</Text>
           <Text style={styles.memberSince}>Member since {memberSince}</Text>
         </View>
-      </View>
-
-      {/* My Reports */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>My Reports</Text>
-        {reportsLoading ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>Loading…</Text>
-          </View>
-        ) : reports.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <MaterialIcons name="eco" size={28} color="#d1d5db" />
-            <Text style={styles.emptyTitle}>No reports yet</Text>
-            <Text style={styles.emptyText}>Your pest reports will appear here.</Text>
-          </View>
-        ) : (
-          reports.map((r) => <ReportCard key={r.id} report={r} />)
-        )}
       </View>
 
       {/* Settings */}
@@ -327,7 +278,7 @@ export default function ProfilePage() {
             >
               <View style={styles.settingsLeft}>
                 <View style={styles.settingsIconBox}>
-                  <MaterialIcons name={item.icon} size={18} color="#71897b" />
+                  <MaterialIcons name={item.icon} size={18} color="#2d4a3e" />
                 </View>
                 <Text style={styles.settingsLabel}>{item.label}</Text>
               </View>
@@ -340,7 +291,7 @@ export default function ProfilePage() {
           >
             <View style={styles.settingsLeft}>
               <View style={styles.settingsIconBox}>
-                <MaterialIcons name="school" size={18} color="#71897b" />
+                <MaterialIcons name="school" size={18} color="#2d4a3e" />
               </View>
               <Text style={styles.settingsLabel}>Restart Tutorial</Text>
             </View>
@@ -358,31 +309,6 @@ export default function ProfilePage() {
         <Text style={styles.signOutText}>Sign out</Text>
       </Pressable>
     </ScrollView>
-  )
-}
-
-function ReportCard({ report }: { report: UserReport }) {
-  const confidence = report.confidence != null ? Math.round(report.confidence * 100) : null
-  const date = report.created_at
-    ? new Date(report.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    : '—'
-  const confColor = confidence == null ? '#9ca3af' : confidence >= 70 ? '#71897b' : confidence >= 40 ? '#d97706' : '#d32f2f'
-
-  return (
-    <View style={styles.reportCard}>
-      <View style={styles.reportIconBox}>
-        <MaterialIcons name="bug-report" size={20} color="#71897b" />
-      </View>
-      <View style={styles.reportInfo}>
-        <Text style={styles.reportPest} numberOfLines={1}>{report.pest_name ?? 'Unknown pest'}</Text>
-        <Text style={styles.reportMeta}>{report.crop_type ?? 'Unknown crop'} · {date}</Text>
-      </View>
-      {confidence != null && (
-        <View style={[styles.confBadge, { backgroundColor: confColor + '18' }]}>
-          <Text style={[styles.confText, { color: confColor }]}>{confidence}%</Text>
-        </View>
-      )}
-    </View>
   )
 }
 
@@ -416,7 +342,7 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   btn: {
-    backgroundColor: '#71897b',
+    backgroundColor: '#2d4a3e',
     borderRadius: 12,
     paddingVertical: 15,
     alignItems: 'center',
@@ -426,7 +352,7 @@ const styles = StyleSheet.create({
   btnDisabled: { opacity: 0.55 },
   btnText: { color: '#fff', fontFamily: 'Outfit_700Bold', fontWeight: '700', fontSize: 16 },
   linkBase: { color: '#111827', fontFamily: 'Outfit_400Regular', fontWeight: '400', fontSize: 14, textAlign: 'center' },
-  linkAction: { color: '#71897b', fontFamily: 'Outfit_600SemiBold', fontWeight: '600' },
+  linkAction: { color: '#2d4a3e', fontFamily: 'Outfit_600SemiBold', fontWeight: '600' },
   error: { color: '#d32f2f', fontSize: 13 },
   digitRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 4 },
   digitGap: { width: 16 },
@@ -440,8 +366,9 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
     paddingTop: 96,
-    paddingBottom: 80,
-    backgroundColor: '#fafafa',
+    paddingBottom: 40,
+    backgroundColor: '#fff',
+    flexGrow: 1,
   },
   header: {
     flexDirection: 'row',
@@ -451,7 +378,7 @@ const styles = StyleSheet.create({
   },
   avatarCircle: {
     width: 64, height: 64, borderRadius: 32,
-    backgroundColor: '#71897b', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#2d4a3e', alignItems: 'center', justifyContent: 'center',
     flexShrink: 0,
   },
   avatarText: { color: '#fff', fontSize: 22, fontFamily: 'Outfit_700Bold', fontWeight: '700' },
@@ -464,26 +391,6 @@ const styles = StyleSheet.create({
     fontSize: 12, fontFamily: 'Outfit_700Bold', fontWeight: '700', color: '#9ca3af',
     textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10,
   },
-  emptyCard: {
-    backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#e5e7eb',
-    paddingVertical: 28, paddingHorizontal: 20, alignItems: 'center', gap: 6,
-  },
-  emptyTitle: { fontSize: 15, fontFamily: 'Outfit_600SemiBold', fontWeight: '600', color: '#374151' },
-  emptyText: { fontSize: 13, fontFamily: 'Outfit_400Regular', fontWeight: '400', color: '#9ca3af', textAlign: 'center' },
-  reportCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb',
-    padding: 14, marginBottom: 8,
-  },
-  reportIconBox: {
-    width: 38, height: 38, borderRadius: 10,
-    backgroundColor: '#f0f4f2', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-  },
-  reportInfo: { flex: 1 },
-  reportPest: { fontSize: 15, fontFamily: 'Outfit_600SemiBold', fontWeight: '600', color: '#111827' },
-  reportMeta: { fontSize: 12, fontFamily: 'Outfit_400Regular', fontWeight: '400', color: '#9ca3af', marginTop: 2 },
-  confBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
-  confText: { fontSize: 12, fontFamily: 'Outfit_700Bold', fontWeight: '700' },
   settingsCard: {
     backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#e5e7eb', overflow: 'hidden',
   },

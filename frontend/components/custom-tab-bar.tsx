@@ -12,8 +12,8 @@ type TabConfig = {
 };
 
 const TAB_CONFIG: TabConfig[] = [
-  { route: 'index',    label: 'My Fields', icon: 'home' },
-  { route: 'pest-map', label: 'Map',     icon: 'map' },
+  { route: 'index',    label: 'My Crops', icon: 'home' },
+  { route: 'my-reports', label: 'My Reports', icon: 'article' },
   { route: 'report',   label: '',        icon: 'camera-alt', isCenter: true },
   { route: 'alerts',   label: 'Alerts',  icon: 'notifications-none' },
   { route: 'profile',  label: 'Profile', icon: 'person-outline' },

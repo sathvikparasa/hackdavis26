@@ -9,7 +9,7 @@ export default function TabLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Tabs tabBar={(props) => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }}>
         <Tabs.Screen name="index" />
-        <Tabs.Screen name="pest-map" />
+        <Tabs.Screen name="my-reports" />
         <Tabs.Screen name="report" />
         <Tabs.Screen name="alerts" />
         <Tabs.Screen name="profile" />

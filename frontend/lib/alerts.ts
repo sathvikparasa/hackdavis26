@@ -168,7 +168,7 @@ export async function fetchAlerts(): Promise<AlertItem[]> {
       return {
         id: report.id,
         reportId: report.id,
-        userId: report.reporter_user_id,
+        userId: report.reporter_user_id ?? null,
         pest,
         crop: vulnerableCropLabel,
         vulnerableCropLabel,

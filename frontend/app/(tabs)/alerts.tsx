@@ -1,4 +1,3 @@
-import { useAuth } from '@clerk/expo';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -8,7 +7,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { AlertListView } from '@/components/alert-list-view';
 import { AlertMapView } from '@/components/alert-map-view';
 import { AlertItem, fetchAlerts } from '@/lib/alerts';
-import { createSupabaseWithAccessToken } from '@/lib/supabase';
 import { getFilterState, subscribeFilterState } from '@/lib/filter-store';
 import { useTutorial } from '@/lib/tutorial';
 
@@ -18,7 +16,6 @@ export default function AlertsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { step, advance } = useTutorial();
-  const { userId, getToken } = useAuth();
 
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [query, setQuery] = useState('');
@@ -47,18 +44,6 @@ export default function AlertsScreen() {
   }
 
   useEffect(() => { loadAlerts(); }, []);
-
-  async function handleDelete(alertId: string) {
-    setAlerts((prev) => prev.filter((a) => a.id !== alertId));
-    try {
-      const authedSupabase = createSupabaseWithAccessToken(() => getToken());
-      const { error } = await authedSupabase.from('reports').delete().eq('id', alertId);
-      if (error) throw error;
-    } catch (err) {
-      console.error('Delete failed:', err);
-      loadAlerts();
-    }
-  }
 
   const filteredAlerts = useMemo(
     () =>
@@ -100,7 +85,6 @@ export default function AlertsScreen() {
           error={error}
           hasActiveFilters={hasActiveFilters}
           loading={loading}
-          onDelete={handleDelete}
           onOpenAlert={openAlert}
           onOpenFilter={openFilter}
           onOpenMap={openMapAlert}
@@ -109,7 +93,6 @@ export default function AlertsScreen() {
           query={query}
           setQuery={setQuery}
           severities={severities}
-          userId={userId ?? null}
         />
       ) : (
         <AlertMapView
