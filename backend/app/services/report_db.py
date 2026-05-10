@@ -130,6 +130,29 @@ def list_farmer_field_owner_user_ids() -> list[str]:
     return [str(row[0]) for row in rows]
 
 
+def list_farmer_field_ids_for_user(reporter_user_id: str) -> list[int]:
+    settings = get_settings()
+    if not settings.supabase_db_url:
+        raise RuntimeError("Missing SUPABASE_DB_URL")
+
+    sql = """
+    select distinct ff.field_id
+    from public.farmer_fields ff
+    join public.profiles p on p.id = ff.profile_id
+    where p.clerk_user_id = %(reporter_user_id)s
+      and nullif(trim(ff.crop_type), '') is not null
+    order by ff.field_id;
+    """
+
+    with psycopg.connect(settings.supabase_db_url, prepare_threshold=None) as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, {"reporter_user_id": reporter_user_id})
+            rows = cur.fetchall()
+
+    return [int(row[0]) for row in rows]
+
+
+
 def upsert_affected_fields(
     report_id: str,
     spread: SpreadResponse,
@@ -234,10 +257,13 @@ def _upsert_affected_fields(cur, report_id: str, spread: SpreadResponse) -> None
 
 
 def _stored_report_from_row(row) -> StoredReport:
-    vulnerable_crop = row[8]
-    if isinstance(vulnerable_crop, str):
-        vulnerable_crop = json.loads(vulnerable_crop)
-    vulnerable_crop = vulnerable_crop or []
+    analysis = _analysis_from_report_columns(
+        pest_name=row[1],
+        confidence=row[5],
+        travel_distance=row[6],
+        spread_methods=row[7],
+        vulnerable_crop=row[8],
+    )
 
     return StoredReport(
         id=str(row[0]),
@@ -245,13 +271,27 @@ def _stored_report_from_row(row) -> StoredReport:
         crop_type=row[2] or "unknown",
         latitude=float(row[3]),
         longitude=float(row[4]),
-        analysis=AnalysisResponse(
-            spread_methods=_spread_methods_from_db(row[7]),
-            vulnerable_crop=[VulnerableCrop(**crop) for crop in vulnerable_crop],
-            travel_distance=float(row[6] or 0),
-            pest_name=row[1],
-            confidence=float(row[5] or 0),
-        ),
+        analysis=analysis,
+    )
+
+
+def _analysis_from_report_columns(
+    pest_name: str,
+    confidence,
+    travel_distance,
+    spread_methods,
+    vulnerable_crop,
+) -> AnalysisResponse:
+    if isinstance(vulnerable_crop, str):
+        vulnerable_crop = json.loads(vulnerable_crop)
+    vulnerable_crop = vulnerable_crop or []
+
+    return AnalysisResponse(
+        spread_methods=_spread_methods_from_db(spread_methods),
+        vulnerable_crop=[VulnerableCrop(**crop) for crop in vulnerable_crop],
+        travel_distance=float(travel_distance or 0),
+        pest_name=pest_name,
+        confidence=float(confidence or 0),
     )
 
 
