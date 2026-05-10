@@ -100,7 +100,7 @@ export default function AlertDetailScreen() {
                       {alert.severity}
                     </Text>
                   </View>
-                  <Text style={styles.cropText}>{alert.crop}</Text>
+                  <Text style={styles.cropText}>{alert.vulnerableCropLabel}</Text>
                 </View>
               </View>
             </View>
@@ -200,6 +200,7 @@ function Bullet({ text }: { text: string }) {
 function ImpactBlock({ impact }: { impact: VulnerableCrop }) {
   return (
     <View style={styles.impactBlock}>
+      <Text style={styles.impactCrop}>{impact.cropType}</Text>
       <Text style={styles.impactLabel}>Damage</Text>
       <Text style={styles.bodyText}>{impact.damageType}</Text>
       <View style={styles.durationRow}>
@@ -434,6 +435,16 @@ const styles = StyleSheet.create({
   },
   impactBlock: {
     gap: 8,
+  },
+  impactCrop: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#eaf8ee',
+    borderRadius: 10,
+    color: '#207232',
+    fontSize: 13,
+    fontFamily: 'Outfit_700Bold', fontWeight: '900',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
   impactLabel: {
     color: '#111827',

@@ -5,6 +5,8 @@ export type AlertItem = {
   reportId: string;
   pest: string;
   crop: string;
+  vulnerableCropLabel: string;
+  vulnerableCropNames: string[];
   type: 'Insects' | 'Fungi' | 'Weeds' | 'Nematodes';
   severity: AlertSeverity;
   distanceMiles: number | null;
@@ -26,7 +28,6 @@ export type AlertItem = {
 type ReportRow = {
   id: string;
   pest_name: string | null;
-  crop_type: string | null;
   latitude: number | null;
   longitude: number | null;
   confidence: number | null;
@@ -58,12 +59,14 @@ type FieldRow = {
 };
 
 type VulnerableCropRow = {
+  crop_type?: string | null;
   damage_type?: string | null;
   duration?: number | null;
   recommendations?: string | null;
 };
 
 export type VulnerableCrop = {
+  cropType: string;
   damageType: string;
   durationDays: number | null;
   recommendations: string;
@@ -89,7 +92,7 @@ const SUPABASE_PUBLISHABLE_KEY =
 
 export async function fetchAlerts(): Promise<AlertItem[]> {
   const reports = await supabaseGet<ReportRow[]>(
-    '/rest/v1/reports?select=id,pest_name,crop_type,latitude,longitude,confidence,travel_distance,spread_methods,vulnerable_crop,created_at,image_bucket,image_path&order=created_at.desc&limit=100'
+    '/rest/v1/reports?select=id,pest_name,latitude,longitude,confidence,travel_distance,spread_methods,vulnerable_crop,created_at,image_bucket,image_path&order=created_at.desc&limit=100'
   );
 
   if (reports.length === 0) {
@@ -143,6 +146,15 @@ export async function fetchAlerts(): Promise<AlertItem[]> {
       const createdAt = report.created_at ? new Date(report.created_at) : null;
       const pest = report.pest_name || 'Unknown Pest';
       const vulnerableCrops = (report.vulnerable_crop ?? []).map(mapVulnerableCrop);
+      const vulnerableCropNames = [
+        ...new Set(
+          vulnerableCrops
+            .map((vulnerableCrop) => vulnerableCrop.cropType.trim())
+            .filter(Boolean)
+            .map(titleCase)
+        ),
+      ];
+      const vulnerableCropLabel = formatCropList(vulnerableCropNames, 'Unknown vulnerable crops');
       const recommendations = [
         ...new Set(
           vulnerableCrops
@@ -155,7 +167,9 @@ export async function fetchAlerts(): Promise<AlertItem[]> {
         id: report.id,
         reportId: report.id,
         pest,
-        crop: titleCase(report.crop_type || 'Unknown'),
+        crop: vulnerableCropLabel,
+        vulnerableCropLabel,
+        vulnerableCropNames,
         type: classifyPest(pest),
         severity,
         distanceMiles,
@@ -250,10 +264,21 @@ function mapAffectedField(affectedField: AffectedFieldRow, field?: FieldRow): Af
 
 function mapVulnerableCrop(value: VulnerableCropRow): VulnerableCrop {
   return {
+    cropType: titleCase(value.crop_type || 'Unknown crop'),
     damageType: value.damage_type || 'Crop damage details unavailable.',
     durationDays: typeof value.duration === 'number' ? value.duration : null,
     recommendations: value.recommendations || 'No recommendation provided.',
   };
+}
+
+function formatCropList(crops: string[], fallback: string): string {
+  if (crops.length === 0) {
+    return fallback;
+  }
+  if (crops.length <= 2) {
+    return crops.join(', ');
+  }
+  return `${crops.slice(0, 2).join(', ')} +${crops.length - 2}`;
 }
 
 function normalizeSeverity(

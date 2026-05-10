@@ -6,56 +6,72 @@
   <style>
     :root { color-scheme: light; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       margin: 0;
-      color: #0f172a;
-      background: #eef6f3;
+      color: #efffe5;
+      background: #eef0f5;
     }
-    main { padding: 34px; max-width: 1500px; margin: 0 auto; }
-    h1 { font-size: 34px; line-height: 1.05; margin: 0 0 8px; letter-spacing: 0; }
-    .subtitle { margin: 0 0 22px; color: #475569; font-size: 17px; max-width: 880px; }
-    .wrap { display: grid; grid-template-columns: minmax(0, 1fr) 410px; gap: 22px; align-items: start; }
+    main { padding: 20px; max-width: 1440px; margin: 0 auto; }
+    .slide {
+      background: #101f24;
+      border: 4px solid #7c3cff;
+      min-height: calc(100vh - 48px);
+      padding: 58px 74px 64px;
+      box-sizing: border-box;
+    }
+    h1 {
+      font-size: 50px;
+      line-height: 0.96;
+      margin: 0 0 12px;
+      letter-spacing: 0;
+      color: #d6ff9f;
+      max-width: 900px;
+    }
+    .subtitle { margin: 0 0 28px; color: #b9cdd2; font-size: 17px; max-width: 930px; }
+    .wrap { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 24px; align-items: stretch; }
     .map-card, .panel {
-      background: rgba(255,255,255,0.9);
-      border: 1px solid rgba(148,163,184,0.35);
-      border-radius: 18px;
-      box-shadow: 0 20px 45px rgba(15,23,42,0.12);
+      background: #142b33;
+      border: 1px solid #21444e;
+      border-radius: 8px;
+      box-shadow: 0 22px 48px rgba(0,0,0,0.22);
       overflow: hidden;
     }
-    svg { width: 100%; height: auto; display: block; background: #ecfeff; }
-    .panel { padding: 20px; }
+    svg { width: 100%; height: auto; display: block; background: #101f24; }
+    .panel { padding: 18px; }
     .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
-    .metric { border: 1px solid #dbeafe; border-radius: 12px; padding: 11px; background: #f8fafc; }
-    .metric strong { display: block; font-size: 11px; text-transform: uppercase; color: #64748b; letter-spacing: .08em; }
-    .metric span { display: block; margin-top: 5px; font-size: 22px; font-weight: 850; color: #0f172a; }
-    .panel h2 { font-size: 15px; margin: 16px 0 8px; color: #334155; }
-    ul { padding-left: 18px; margin: 0; color: #334155; line-height: 1.42; }
+    .metric { border: 1px solid #244b56; border-radius: 8px; padding: 11px; background: #1a3841; }
+    .metric strong { display: block; font-size: 10px; text-transform: uppercase; color: #a8bdc3; letter-spacing: .08em; }
+    .metric span { display: block; margin-top: 5px; font-size: 22px; font-weight: 850; color: #d6ff9f; }
+    .panel h2 { font-size: 15px; margin: 16px 0 8px; color: #d6ff9f; }
+    ul { padding-left: 18px; margin: 0; color: #d7e7e0; line-height: 1.42; }
     li { margin: 7px 0; }
     details { margin-top: 18px; }
-    summary { cursor: pointer; color: #2563eb; font-weight: 700; }
-    pre { white-space: pre-wrap; background: #0f172a; color: #e2e8f0; padding: 14px; border-radius: 12px; font-size: 12px; max-height: 290px; overflow: auto; }
-    .legend { display: flex; flex-wrap: wrap; gap: 10px 16px; margin: 10px 0 20px; font-size: 14px; color: #334155; }
-    .swatch { display: inline-block; width: 16px; height: 16px; margin-right: 7px; vertical-align: -3px; border: 1px solid #64748b; border-radius: 4px; }
+    summary { cursor: pointer; color: #d6ff9f; font-weight: 700; }
+    pre { white-space: pre-wrap; background: #0a1519; color: #d7e7e0; padding: 14px; border-radius: 8px; font-size: 12px; max-height: 290px; overflow: auto; }
+    .legend { display: flex; flex-wrap: wrap; gap: 10px 14px; margin: 10px 0 24px; font-size: 13px; color: #d7e7e0; }
+    .legend span { background: #1a3841; border-radius: 8px; padding: 8px 10px; }
+    .swatch { display: inline-block; width: 16px; height: 16px; margin-right: 7px; vertical-align: -3px; border: 1px solid #d6ff9f; border-radius: 4px; }
   </style>
 </head>
 <body>
   <main>
-    <h1>Custom Wind Cone Simulation</h1>
-    <p class="subtitle">Wind spread uses a soft forward cone: fields closer to the centerline score higher, sidewind fields fade out, and upwind fields are ignored.</p>
-    <div class="legend"><span><span class="swatch" style="background:#3b82f6"></span>wind alert</span><span><span class="swatch" style="background:#e5e7eb; border-style:dashed"></span>same crop outside cone</span><span><span class="swatch" style="background:#fde68a"></span>unaffected crop</span><span><span class="swatch" style="background:#bfdbfe; border-color:#2563eb"></span>wind cone</span><span><span class="swatch" style="background:#ef4444"></span>report location</span></div>
-    <div class="wrap">
-      <section class="map-card">
-        <svg viewBox="0 0 1100 720">
-          <defs><linearGradient id="fieldGradient" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#60a5fa" /><stop offset="100%" stop-color="#1d4ed8" /></linearGradient><linearGradient id="waterGradient" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#67e8f9" /><stop offset="100%" stop-color="#0e7490" /></linearGradient><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#1d4ed8" /></marker></defs><rect x="18" y="18" width="1064" height="684" rx="26" fill="#ffffff" stroke="#dbeafe" stroke-width="2" /><path d="M70 628 C240 568 345 674 514 610 C687 545 755 641 1010 574" fill="none" stroke="#e0f2fe" stroke-width="42" stroke-linecap="round" opacity="0.9" /><path d="M 433.9 281.1 L 761.9 240.8 Q 667.6 514.8 393.6 609.1 Z" fill="#bfdbfe" fill-opacity="0.42" stroke="#2563eb" stroke-width="3" stroke-dasharray="12 8" /><line x1="433.9" y1="281.1" x2="667.6" y2="514.8" stroke="#2563eb" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)" /><text x="679.6" y="536.8" font-size="17" font-weight="900" fill="#1d4ed8">wind direction</text><rect x="420.7" y="267.9" width="26.4" height="26.4" rx="6" fill="#3b82f6" stroke="#1d4ed8" stroke-width="2.5"  filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" /><text x="433.9" y="286.1" font-size="15" font-weight="900" text-anchor="middle" fill="#0f172a">A</text><text x="433.9" y="310.3" font-size="11" text-anchor="middle" fill="#374151">almonds</text><rect x="503.3" y="350.5" width="26.4" height="26.4" rx="6" fill="#3b82f6" stroke="#1d4ed8" stroke-width="2.5"  filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" /><text x="516.5" y="368.7" font-size="15" font-weight="900" text-anchor="middle" fill="#0f172a">J</text><text x="516.5" y="392.9" font-size="11" text-anchor="middle" fill="#374151">almonds</text><rect x="552.9" y="325.7" width="26.4" height="26.4" rx="6" fill="#3b82f6" stroke="#1d4ed8" stroke-width="2.5"  filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" /><text x="566.1" y="343.9" font-size="15" font-weight="900" text-anchor="middle" fill="#0f172a">K</text><text x="566.1" y="368.1" font-size="11" text-anchor="middle" fill="#374151">almonds</text><rect x="478.5" y="408.3" width="26.4" height="26.4" rx="6" fill="#3b82f6" stroke="#1d4ed8" stroke-width="2.5"  filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" /><text x="491.8" y="426.5" font-size="15" font-weight="900" text-anchor="middle" fill="#0f172a">L</text><text x="491.8" y="450.8" font-size="11" text-anchor="middle" fill="#374151">almonds</text><rect x="561.1" y="110.9" width="26.4" height="26.4" rx="6" fill="#e5e7eb" stroke="#64748b" stroke-width="2.5" stroke-dasharray="7 5" filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" /><text x="574.4" y="129.1" font-size="15" font-weight="900" text-anchor="middle" fill="#0f172a">M</text><text x="574.4" y="153.4" font-size="11" text-anchor="middle" fill="#374151">almonds</text><rect x="338.1" y="185.3" width="26.4" height="26.4" rx="6" fill="#e5e7eb" stroke="#64748b" stroke-width="2.5" stroke-dasharray="7 5" filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" /><text x="351.3" y="203.5" font-size="15" font-weight="900" text-anchor="middle" fill="#0f172a">N</text><text x="351.3" y="227.7" font-size="11" text-anchor="middle" fill="#374151">almonds</text><rect x="606.6" y="358.8" width="26.4" height="26.4" rx="6" fill="#fde68a" stroke="#b45309" stroke-width="2.5"  filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" /><text x="619.8" y="377.0" font-size="15" font-weight="900" text-anchor="middle" fill="#0f172a">F</text><text x="619.8" y="401.2" font-size="11" text-anchor="middle" fill="#374151">corn</text><circle cx="433.9" cy="281.1" r="10" fill="#ef4444" stroke="#7f1d1d" stroke-width="3" /><line x1="425.9" y1="273.1" x2="391.9" y2="248.1" stroke="#7f1d1d" stroke-width="2" stroke-linecap="round" /><rect x="265.9" y="233.1" width="126" height="30" rx="15" fill="#fff1f2" stroke="#ef4444" stroke-width="2" /><text x="328.9" y="253.1" font-size="14" font-weight="900" text-anchor="middle" fill="#7f1d1d">report location</text>
-        </svg>
-      </section>
-      <aside class="panel">
-        <div class="metrics"><div class="metric"><strong>Wind direction</strong><span>135 deg</span></div><div class="metric"><strong>Wind speed</strong><span>18.0 mph</span></div><div class="metric"><strong>Travel radius</strong><span>4.0 mi</span></div><div class="metric"><strong>Alerted fields</strong><span>4</span></div></div>
-        <h2>What this proves</h2>
-        <ul><li><span>J is directly downwind from the report location and scores highest.</span></li><li><span>K and L are within the soft cone and score lower as angle/distance increase.</span></li><li><span>M is sidewind and N is upwind, so they do not alert.</span></li><li><span>F is corn, which is not listed as vulnerable for this pest.</span></li></ul>
-        <details>
-          <summary>Raw simulation output</summary>
-          <pre>{
+    <section class="slide">
+      <h1>Custom Wind Cone Simulation</h1>
+      <p class="subtitle">Wind spread uses a soft forward cone: fields closer to the centerline score higher, sidewind fields fade out, and upwind fields are ignored.</p>
+      <div class="legend"><span><span class="swatch" style="background:#d6ff9f"></span>wind alert</span><span><span class="swatch" style="background:#172a31; border-style:dashed; border-color:#6e8790"></span>same crop outside cone</span><span><span class="swatch" style="background:#172a31; border-color:#c1d4d9"></span>unaffected crop</span><span><span class="swatch" style="background:#d6ff9f; opacity:0.45"></span>wind cone</span><span><span class="swatch" style="background:#7c3cff; border-color:#efe5ff"></span>report location</span></div>
+      <div class="wrap">
+        <section class="map-card">
+          <svg viewBox="0 0 1100 720">
+            <defs><linearGradient id="fieldGradient" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#dcffad" /><stop offset="100%" stop-color="#b8f36f" /></linearGradient><linearGradient id="waterGradient" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#d8ffac" /><stop offset="100%" stop-color="#8be7c4" /></linearGradient><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#d6ff9f" /></marker></defs><rect x="18" y="18" width="1064" height="684" rx="8" fill="#101f24" stroke="#7c3cff" stroke-width="3" /><path d="M70 628 C240 568 345 674 514 610 C687 545 755 641 1010 574" fill="none" stroke="#203941" stroke-width="42" stroke-linecap="round" opacity="0.72" /><path d="M 433.9 281.1 L 761.9 240.8 Q 667.6 514.8 393.6 609.1 Z" fill="#d6ff9f" fill-opacity="0.16" stroke="#d6ff9f" stroke-width="3" stroke-dasharray="12 8" /><line x1="433.9" y1="281.1" x2="667.6" y2="514.8" stroke="#d6ff9f" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)" /><text x="679.6" y="536.8" font-size="17" font-weight="900" fill="#d6ff9f">wind direction</text><rect x="420.7" y="267.9" width="26.4" height="26.4" rx="6" fill="#d6ff9f" stroke="#ecffd1" stroke-width="2.5"  filter="drop-shadow(0 8px 12px rgba(0,0,0,0.34))" /><text x="433.9" y="286.1" font-size="15" font-weight="900" text-anchor="middle" fill="#0d1d22">A</text><text x="433.9" y="310.3" font-size="11" text-anchor="middle" fill="#173016">almonds</text><rect x="503.3" y="350.5" width="26.4" height="26.4" rx="6" fill="#d6ff9f" stroke="#ecffd1" stroke-width="2.5"  filter="drop-shadow(0 8px 12px rgba(0,0,0,0.34))" /><text x="516.5" y="368.7" font-size="15" font-weight="900" text-anchor="middle" fill="#0d1d22">J</text><text x="516.5" y="392.9" font-size="11" text-anchor="middle" fill="#173016">almonds</text><rect x="552.9" y="325.7" width="26.4" height="26.4" rx="6" fill="#d6ff9f" stroke="#ecffd1" stroke-width="2.5"  filter="drop-shadow(0 8px 12px rgba(0,0,0,0.34))" /><text x="566.1" y="343.9" font-size="15" font-weight="900" text-anchor="middle" fill="#0d1d22">K</text><text x="566.1" y="368.1" font-size="11" text-anchor="middle" fill="#173016">almonds</text><rect x="478.5" y="408.3" width="26.4" height="26.4" rx="6" fill="#d6ff9f" stroke="#ecffd1" stroke-width="2.5"  filter="drop-shadow(0 8px 12px rgba(0,0,0,0.34))" /><text x="491.8" y="426.5" font-size="15" font-weight="900" text-anchor="middle" fill="#0d1d22">L</text><text x="491.8" y="450.8" font-size="11" text-anchor="middle" fill="#173016">almonds</text><rect x="561.1" y="110.9" width="26.4" height="26.4" rx="6" fill="#172a31" stroke="#6e8790" stroke-width="2.5" stroke-dasharray="7 5" filter="drop-shadow(0 8px 12px rgba(0,0,0,0.34))" /><text x="574.4" y="129.1" font-size="15" font-weight="900" text-anchor="middle" fill="#d6ff9f">M</text><text x="574.4" y="153.4" font-size="11" text-anchor="middle" fill="#a8bdc3">almonds</text><rect x="338.1" y="185.3" width="26.4" height="26.4" rx="6" fill="#172a31" stroke="#6e8790" stroke-width="2.5" stroke-dasharray="7 5" filter="drop-shadow(0 8px 12px rgba(0,0,0,0.34))" /><text x="351.3" y="203.5" font-size="15" font-weight="900" text-anchor="middle" fill="#d6ff9f">N</text><text x="351.3" y="227.7" font-size="11" text-anchor="middle" fill="#a8bdc3">almonds</text><rect x="606.6" y="358.8" width="26.4" height="26.4" rx="6" fill="#172a31" stroke="#c1d4d9" stroke-width="2.5"  filter="drop-shadow(0 8px 12px rgba(0,0,0,0.34))" /><text x="619.8" y="377.0" font-size="15" font-weight="900" text-anchor="middle" fill="#d6ff9f">F</text><text x="619.8" y="401.2" font-size="11" text-anchor="middle" fill="#a8bdc3">corn</text><circle cx="433.9" cy="281.1" r="10" fill="#7c3cff" stroke="#efe5ff" stroke-width="3" /><line x1="425.9" y1="273.1" x2="391.9" y2="248.1" stroke="#d6ff9f" stroke-width="2" stroke-linecap="round" /><rect x="265.9" y="233.1" width="126" height="30" rx="15" fill="#d6ff9f" stroke="#ecffd1" stroke-width="2" /><text x="328.9" y="253.1" font-size="14" font-weight="900" text-anchor="middle" fill="#0d1d22">report location</text>
+          </svg>
+        </section>
+        <aside class="panel">
+          <div class="metrics"><div class="metric"><strong>Wind direction</strong><span>135 deg</span></div><div class="metric"><strong>Wind speed</strong><span>18.0 mph</span></div><div class="metric"><strong>Travel radius</strong><span>4.0 mi</span></div><div class="metric"><strong>Alerted fields</strong><span>4</span></div></div>
+          <h2>What this proves</h2>
+          <ul><li><span>J is directly downwind from the report location and scores highest.</span></li><li><span>K and L are within the soft cone and score lower as angle/distance increase.</span></li><li><span>M is sidewind and N is upwind, so they do not alert.</span></li><li><span>F is corn, which is not listed as vulnerable for this pest.</span></li></ul>
+          <details>
+            <summary>Raw simulation output</summary>
+            <pre>{
   "wind_direction_degrees": 135.0,
   "wind_speed_mph": 18.0,
   "wind_travel_miles": 4.0,
@@ -116,9 +132,10 @@
     }
   ]
 }</pre>
-        </details>
-      </aside>
-    </div>
+          </details>
+        </aside>
+      </div>
+    </section>
   </main>
 </body>
 </html>
