@@ -12,6 +12,7 @@ const severityConfig: Record<AlertSeverity, { cardBg: string; accent: string }> 
 
 type AlertListViewProps = {
   alerts: AlertItem[];
+  allAlertsCount: number;
   crops: string[];
   error: string | null;
   hasActiveFilters: boolean;
@@ -28,6 +29,7 @@ type AlertListViewProps = {
 
 export function AlertListView({
   alerts,
+  allAlertsCount,
   crops,
   error,
   hasActiveFilters,
@@ -51,6 +53,11 @@ export function AlertListView({
     >
       <View style={styles.feedSection}>
         <Text style={styles.sectionHeading}>Alerts</Text>
+        {!loading && (
+          <Text style={styles.sectionSubheading}>
+            {allAlertsCount === 1 ? '1 alert' : `${allAlertsCount} alerts`} in your area
+          </Text>
+        )}
 
         <AlertSearchControls
           hasActiveFilters={hasActiveFilters}
@@ -302,7 +309,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 12,
     paddingBottom: 120,
     maxWidth: 600,
     alignSelf: 'center',
@@ -314,7 +321,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_400Regular', fontWeight: '400',
   },
   feedSection: {
-    marginTop: 20,
+    marginTop: 0,
     gap: 14,
   },
   filterBtn: {
@@ -406,6 +413,13 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontFamily: 'Outfit_700Bold', fontWeight: '800',
     letterSpacing: -0.5,
+    paddingRight: 120,
+  },
+  sectionSubheading: {
+    color: '#9ca3af',
+    fontSize: 13,
+    fontFamily: 'Outfit_400Regular', fontWeight: '400',
+    marginTop: -8,
   },
   severityBar: {
     width: 7,

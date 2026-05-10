@@ -135,6 +135,7 @@ function PinMarker({ alert, onSelect, showLabel }: { alert: AlertItem; onSelect:
 function AlertsMapComponent({
   alerts,
   fields = [],
+  irrigationDistricts = [],
   onSelect,
   onClearSelection,
   focusedLocation,
@@ -150,6 +151,11 @@ function AlertsMapComponent({
     crop: string | null;
     geometry: Geometry;
     id: number;
+  }[];
+  irrigationDistricts?: {
+    id: number;
+    agency_name: string;
+    geometry: Geometry;
   }[];
   selectedId: string | null;
   onSelect: (id: string) => void;
@@ -167,9 +173,10 @@ function AlertsMapComponent({
   const [showCenterMapButton, setShowCenterMapButton] = useState(false);
   const [showLayersMenu, setShowLayersMenu] = useState(false);
   const [showFieldsLayer, setShowFieldsLayer] = useState(false);
+  const [showIrrigationLayer, setShowIrrigationLayer] = useState(false);
   const [latitudeDelta, setLatitudeDelta] = useState(YOLO_REGION.latitudeDelta);
   const showPinLabels = latitudeDelta < 0.22;
-  const hasActiveLayer = showFieldsLayer || !!showWindLayer;
+  const hasActiveLayer = showFieldsLayer || showIrrigationLayer || !!showWindLayer;
   const fieldPolygons = useMemo(
     () => fields.flatMap((field) => geometryToPolygonRings(field.geometry, field.id)),
     [fields]
@@ -199,6 +206,10 @@ function AlertsMapComponent({
   const focusedField = useMemo(
     () => fields.find((field) => field.id === focusedFieldId) ?? null,
     [fields, focusedFieldId]
+  );
+  const irrigationPolygons = useMemo(
+    () => irrigationDistricts.flatMap((d) => d.geometry ? geometryToPolygonRings(d.geometry, d.id) : []),
+    [irrigationDistricts]
   );
   const layersMenuBottom = useMemo(() => Animated.add(layersBottomAnim, 56), [layersBottomAnim]);
 
@@ -311,6 +322,18 @@ function AlertsMapComponent({
             zIndex={2}
           />
         )) : null}
+        {showIrrigationLayer ? irrigationPolygons.map((poly) => (
+          <Polygon
+            key={`irrigation-${poly.id}`}
+            coordinates={poly.coordinates}
+            holes={poly.holes}
+            fillColor="rgba(14,165,233,0.2)"
+            strokeColor="#0ea5e9"
+            strokeWidth={1.5}
+            tappable={false}
+            zIndex={2}
+          />
+        )) : null}
         {showFieldsLayer ? fieldLabels.map((label) => (
           <Marker
             key={`field-label-${label.id}`}
@@ -373,6 +396,15 @@ function AlertsMapComponent({
               {showFieldsLayer ? <MaterialIcons name="check" size={16} color="#fff" /> : null}
             </View>
             <Text style={styles.layerMenuText}>My fields</Text>
+          </Pressable>
+          <Pressable
+            style={styles.layerMenuItem}
+            onPress={() => setShowIrrigationLayer((current) => !current)}
+          >
+            <View style={[styles.layerCheckbox, showIrrigationLayer && styles.layerCheckboxIrrigation]}>
+              {showIrrigationLayer ? <MaterialIcons name="check" size={16} color="#fff" /> : null}
+            </View>
+            <Text style={styles.layerMenuText}>Irrigation districts</Text>
           </Pressable>
           <Pressable
             style={styles.layerMenuItem}
@@ -518,6 +550,7 @@ export const AlertsMap = memo(
   (prev, next) =>
     prev.alerts === next.alerts &&
     prev.fields === next.fields &&
+    prev.irrigationDistricts === next.irrigationDistricts &&
     prev.centerButtonTop === next.centerButtonTop &&
     prev.focusedFieldId === next.focusedFieldId &&
     prev.layersControlBottom === next.layersControlBottom &&
@@ -632,6 +665,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#2d4a3e',
     borderColor: '#2d4a3e',
   },
+  layerCheckboxIrrigation: {
+    backgroundColor: '#0ea5e9',
+    borderColor: '#0ea5e9',
+  },
   layerMenuItem: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -657,7 +694,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.14,
     shadowRadius: 18,
-    zIndex: 10,
+    zIndex: 20,
+    elevation: 20,
   },
   layersMenuTitle: {
     color: '#6b7280',

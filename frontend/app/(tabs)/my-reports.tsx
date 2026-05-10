@@ -305,12 +305,12 @@ export default function MyReportsScreen() {
   if (!isSignedIn) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <View style={styles.emptyState}>
-          <MaterialIcons name="person-outline" size={48} color="#d1d5db" />
-          <Text style={styles.emptyTitle}>Sign in to see your reports</Text>
-          <Text style={styles.emptyText}>Your submitted pest reports will appear here.</Text>
-          <Pressable style={styles.signInBtn} onPress={() => router.push('/(tabs)/profile')}>
-            <Text style={styles.signInBtnText}>Sign In</Text>
+        <View style={styles.loginGate}>
+          <MaterialIcons name="lock-outline" size={32} color="#2d4a3e" />
+          <Text style={styles.loginTitle}>Log in to use My Data</Text>
+          <Text style={styles.loginCopy}>View your submitted reports and field risk levels.</Text>
+          <Pressable style={styles.loginButton} onPress={() => router.push('/(tabs)/profile')}>
+            <Text style={styles.loginButtonText}>Log In</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -422,7 +422,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 12,
     paddingBottom: 120,
     maxWidth: 600,
     alignSelf: 'center',
@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_700Bold',
     fontWeight: '800',
     letterSpacing: -0.5,
-    marginTop: 20,
+    marginTop: 0,
     marginBottom: 14,
   },
   riskCard: {
@@ -573,6 +573,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
+  },
+  loginGate: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 40,
+  },
+  loginTitle: {
+    color: '#111827',
+    fontSize: 19,
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
+    marginTop: 10,
+    textAlign: 'center',
+  },
+  loginCopy: {
+    color: '#4b5563',
+    fontSize: 14,
+    fontFamily: 'Outfit_400Regular', fontWeight: '400',
+    lineHeight: 20,
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  loginButton: {
+    alignItems: 'center',
+    backgroundColor: '#2d4a3e',
+    borderRadius: 14,
+    marginTop: 16,
+    paddingHorizontal: 22,
+    paddingVertical: 13,
+  },
+  loginButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontFamily: 'Outfit_700Bold', fontWeight: '900',
   },
   emptyState: {
     flex: 1,

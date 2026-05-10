@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { LayoutChangeEvent, StyleSheet, View } from 'react-native';
 
 const PARTICLE_COUNT = 128;
-const TRAIL_POINTS = 28;
+const TRAIL_POINTS = 52;
 const REFRESH_MS = 10 * 60 * 1000;
 const GRID_ROWS = 4;
 const GRID_COLS = 4;

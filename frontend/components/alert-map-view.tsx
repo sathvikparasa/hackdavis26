@@ -35,6 +35,11 @@ type AlertMapViewProps = {
     geometry: Geometry;
     id: number;
   }[];
+  irrigationDistricts: {
+    id: number;
+    agency_name: string;
+    geometry: Geometry;
+  }[];
   allAlertsCount: number;
   centerButtonTop: number;
   crops: string[];
@@ -58,6 +63,7 @@ type AlertMapViewProps = {
 export function AlertMapView({
   alerts,
   alertMapFields,
+  irrigationDistricts,
   allAlertsCount,
   centerButtonTop,
   crops,
@@ -90,11 +96,11 @@ export function AlertMapView({
     () => (trimmedQuery.length >= 2 ? alerts.slice(0, 6) : []),
     [alerts, trimmedQuery.length]
   );
-  const layersControlBottom =
+  const filterControlBottom =
     displayedAlert && detailSheetHeight > 0
       ? detailSheetHeight + LAYERS_BUTTON_SHEET_GAP
       : LAYERS_BUTTON_BOTTOM;
-  const filterControlBottom = layersControlBottom + FLOATING_CONTROL_SIZE + FLOATING_CONTROL_GAP;
+  const layersControlBottom = filterControlBottom + FLOATING_CONTROL_SIZE + FLOATING_CONTROL_GAP;
 
   useEffect(() => {
     if (selectedAlert) {
@@ -134,6 +140,7 @@ export function AlertMapView({
       <AlertsMap
         alerts={alerts}
         fields={alertMapFields}
+        irrigationDistricts={irrigationDistricts}
         selectedId={selectedAlertId}
         onSelect={onSelectAlert}
         onClearSelection={onClearSelection}

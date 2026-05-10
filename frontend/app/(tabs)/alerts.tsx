@@ -10,7 +10,7 @@ import { AlertListView } from '@/components/alert-list-view';
 import { AlertMapView } from '@/components/alert-map-view';
 import { AlertItem, fetchAlerts } from '@/lib/alerts';
 import { getFilterState, subscribeFilterState } from '@/lib/filter-store';
-import { createSupabaseWithAccessToken } from '@/lib/supabase';
+import { createSupabaseWithAccessToken, supabase } from '@/lib/supabase';
 import { useTutorial } from '@/lib/tutorial';
 
 type ViewMode = 'list' | 'map';
@@ -19,6 +19,12 @@ type AlertMapField = {
   crop: string | null;
   geometry: Geometry;
   id: number;
+};
+
+type IrrigationDistrict = {
+  id: number;
+  agency_name: string;
+  geometry: Geometry;
 };
 
 type FarmerFieldRow = {
@@ -47,6 +53,7 @@ export default function AlertsScreen() {
 
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [alertMapFields, setAlertMapFields] = useState<AlertMapField[]>([]);
+  const [irrigationDistricts, setIrrigationDistricts] = useState<IrrigationDistrict[]>([]);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -154,6 +161,23 @@ export default function AlertsScreen() {
     };
   }, [authenticatedSupabase, isSignedIn]);
 
+  useEffect(() => {
+    supabase.rpc('get_irrigation_districts').then(({ data }) => {
+      const districts = ((data ?? []) as { id: number; agency_name: string; geojson: string }[])
+        .map((row) => {
+          try {
+            const geometry = row.geojson ? JSON.parse(row.geojson) as Geometry : null;
+            if (!geometry) return null;
+            return { id: row.id, agency_name: row.agency_name, geometry };
+          } catch {
+            return null;
+          }
+        })
+        .filter((d): d is IrrigationDistrict => d !== null);
+      setIrrigationDistricts(districts);
+    });
+  }, []);
+
   const filteredAlerts = useMemo(
     () =>
       alerts.filter((alert) => {
@@ -191,6 +215,7 @@ export default function AlertsScreen() {
         <SafeAreaView style={styles.safe} edges={['top']}>
           <AlertListView
             alerts={filteredAlerts}
+            allAlertsCount={alerts.length}
             crops={crops}
             error={error}
             hasActiveFilters={hasActiveFilters}
@@ -210,6 +235,7 @@ export default function AlertsScreen() {
           alerts={filteredAlerts}
           allAlertsCount={alerts.length}
           alertMapFields={alertMapFields}
+          irrigationDistricts={irrigationDistricts}
           crops={crops}
           centerButtonTop={insets.top + 76}
           error={error}

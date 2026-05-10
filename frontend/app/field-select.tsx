@@ -818,18 +818,16 @@ export default function FieldSelectScreen() {
   return (
     <View style={styles.container}>
       {isLoaded && !isSignedIn ? (
-        <View style={styles.loginGate}>
-          <MaterialIcons name="lock-outline" size={32} color="#1a2e1a" />
+        <View style={[styles.loginGate, { paddingTop: insets.top }]}>
+          <MaterialIcons name="lock-outline" size={32} color="#2d4a3e" />
           <Text style={styles.loginTitle}>Log in to use My Crops</Text>
           <Text style={styles.loginCopy}>Save fields and crop types to your farmer profile.</Text>
           <Pressable style={styles.loginButton} onPress={() => router.push('/(tabs)/profile')}>
             <Text style={styles.loginButtonText}>Log In</Text>
           </Pressable>
         </View>
-      ) : null}
-
-      {viewMode === 'list' ? (
-        <View style={[styles.listScreen, { paddingTop: insets.top + 18 }]}>
+      ) : viewMode === 'list' ? (
+        <View style={[styles.listScreen, { paddingTop: insets.top + 12 }]}>
           <View style={styles.listHeader}>
             <View>
               <Text style={styles.listTitle}>My Crops</Text>
@@ -1000,7 +998,7 @@ export default function FieldSelectScreen() {
         </>
       )}
 
-      <View style={[styles.fixedViewToggle, { top: insets.top + 12 }]}>
+      {isSignedIn && <View style={[styles.fixedViewToggle, { top: insets.top + 12 }]}>
         <Pressable
           style={[styles.toggleButton, viewMode === 'list' && styles.toggleButtonActive]}
           onPress={() => setViewMode('list')}
@@ -1013,7 +1011,7 @@ export default function FieldSelectScreen() {
         >
           <MaterialIcons name="map" size={19} color={viewMode === 'map' ? '#fff' : '#6b7280'} />
         </Pressable>
-      </View>
+      </View>}
 
       {activeField && viewMode === 'map' ? (
         <KeyboardAvoidingView
@@ -1667,20 +1665,9 @@ const styles = StyleSheet.create({
   },
   loginGate: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.96)',
-    borderColor: '#e5e7eb',
-    borderRadius: 18,
-    borderWidth: 1,
-    left: 24,
-    padding: 20,
-    position: 'absolute',
-    right: 24,
-    shadowColor: '#111827',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.14,
-    shadowRadius: 24,
-    top: '34%',
-    zIndex: 12,
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 40,
   },
   loginTitle: {
     color: '#111827',
@@ -1766,7 +1753,9 @@ const styles = StyleSheet.create({
   listTitle: {
     color: '#111827',
     fontSize: 28,
-    fontFamily: 'Outfit_700Bold', fontWeight: '900',
+    fontFamily: 'Outfit_700Bold', fontWeight: '800',
+    letterSpacing: -0.5,
+    marginLeft: 2,
   },
   map: {
     flex: 1,
