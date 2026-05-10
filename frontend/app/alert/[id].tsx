@@ -1,9 +1,10 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
+  PanResponder,
   ScrollView,
   StyleSheet,
   Text,
@@ -29,6 +30,7 @@ export default function AlertDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [alert, setAlert] = useState<AlertItem | null>(null);
+  const [selectedCropIndex, setSelectedCropIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,6 +46,7 @@ export default function AlertDetailScreen() {
       setError(null);
       const nextAlert = await fetchAlertById(id);
       setAlert(nextAlert);
+      setSelectedCropIndex(0);
       if (!nextAlert) {
         setError('Alert not found');
       }
@@ -59,6 +62,14 @@ export default function AlertDetailScreen() {
   }, [loadAlert]);
 
   const colors = alert ? severityStyles[alert.severity] : severityStyles.Low;
+  const selectedCrop = alert?.vulnerableCrops[selectedCropIndex] ?? null;
+  const fullCropLabel = useMemo(
+    () =>
+      alert && alert.vulnerableCropNames.length > 0
+        ? alert.vulnerableCropNames.join(', ')
+        : alert?.vulnerableCropLabel ?? 'Unknown vulnerable crops',
+    [alert]
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -100,33 +111,38 @@ export default function AlertDetailScreen() {
                       {alert.severity}
                     </Text>
                   </View>
-                  <Text style={styles.cropText}>{alert.vulnerableCropLabel}</Text>
+                  <Text style={styles.cropText}>{fullCropLabel}</Text>
                 </View>
               </View>
             </View>
 
-            <View style={styles.metrics}>
-              <Metric icon="near-me" label="Distance" value={alert.distance} />
-              <Metric icon="radio-button-unchecked" label="Radius" value={alert.travelDistance} />
-              <Metric icon="travel-explore" label="Spread" value={formatMethods(alert.spreadMethods)} />
-              <Metric icon="verified" label="Confidence" value={formatPercent(alert.confidence)} />
-            </View>
+            <CropToggle
+              crops={alert.vulnerableCrops}
+              selectedIndex={selectedCropIndex}
+              metrics={[
+                { label: 'Radius', value: alert.travelDistance },
+                { label: 'Spread', value: formatMethods(alert.spreadMethods) },
+                { label: 'Confidence', value: formatPercent(alert.confidence) },
+              ]}
+              onPrevious={() => setSelectedCropIndex((index) => Math.max(index - 1, 0))}
+              onNext={() =>
+                setSelectedCropIndex((index) =>
+                  Math.min(index + 1, Math.max(alert.vulnerableCrops.length - 1, 0))
+                )
+              }
+            />
 
             <Section title="Recommendations" icon="checklist">
-              {alert.recommendations.length > 0 ? (
-                alert.recommendations.map((recommendation) => (
-                  <Bullet key={recommendation} text={recommendation} />
-                ))
+              {selectedCrop?.recommendations ? (
+                <Bullet text={selectedCrop.recommendations} />
               ) : (
-                <Text style={styles.emptyText}>No recommendations were returned for this report.</Text>
+                <Text style={styles.emptyText}>No recommendations were returned for this crop.</Text>
               )}
             </Section>
 
             <Section title="Crop Impact" icon="grass">
-              {alert.vulnerableCrops.length > 0 ? (
-                alert.vulnerableCrops.map((cropImpact, index) => (
-                  <ImpactBlock key={`${cropImpact.damageType}-${index}`} impact={cropImpact} />
-                ))
+              {selectedCrop ? (
+                <ImpactBlock impact={selectedCrop} />
               ) : (
                 <Text style={styles.emptyText}>No crop impact details were returned.</Text>
               )}
@@ -145,6 +161,77 @@ export default function AlertDetailScreen() {
         )}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function CropToggle({
+  crops,
+  selectedIndex,
+  metrics,
+  onPrevious,
+  onNext,
+}: {
+  crops: VulnerableCrop[];
+  selectedIndex: number;
+  metrics: { label: string; value: string }[];
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  if (crops.length === 0) {
+    return null;
+  }
+
+  const selectedCrop = crops[selectedIndex];
+  const canGoPrevious = selectedIndex > 0;
+  const canGoNext = selectedIndex < crops.length - 1;
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gesture) =>
+          Math.abs(gesture.dx) > 18 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.2,
+        onPanResponderRelease: (_, gesture) => {
+          if (gesture.dx < -36 && canGoNext) {
+            onNext();
+          } else if (gesture.dx > 36 && canGoPrevious) {
+            onPrevious();
+          }
+        },
+      }),
+    [canGoNext, canGoPrevious, onNext, onPrevious]
+  );
+
+  return (
+    <View style={styles.cropToggle} {...panResponder.panHandlers}>
+      <View style={styles.cropToggleHeader}>
+        <Pressable
+          style={[styles.cropToggleButton, !canGoPrevious && styles.cropToggleButtonDisabled]}
+          disabled={!canGoPrevious}
+          onPress={onPrevious}
+        >
+          <MaterialIcons name="chevron-left" size={22} color={canGoPrevious ? '#2f7d32' : '#a7b4aa'} />
+        </Pressable>
+        <View style={styles.cropToggleCopy}>
+          <Text style={styles.cropToggleEyebrow}>
+            Crop {selectedIndex + 1} of {crops.length}
+          </Text>
+          <Text style={styles.cropToggleTitle} numberOfLines={2}>
+            {selectedCrop.cropType}
+          </Text>
+        </View>
+        <Pressable
+          style={[styles.cropToggleButton, !canGoNext && styles.cropToggleButtonDisabled]}
+          disabled={!canGoNext}
+          onPress={onNext}
+        >
+          <MaterialIcons name="chevron-right" size={22} color={canGoNext ? '#2f7d32' : '#a7b4aa'} />
+        </Pressable>
+      </View>
+      <View style={styles.metrics} {...panResponder.panHandlers}>
+        {metrics.map((metric) => (
+          <Metric key={metric.label} label={metric.label} value={metric.value} />
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -169,17 +256,14 @@ function Section({
 }
 
 function Metric({
-  icon,
   label,
   value,
 }: {
-  icon: keyof typeof MaterialIcons.glyphMap;
   label: string;
   value: string;
 }) {
   return (
     <View style={styles.metric}>
-      <MaterialIcons name={icon} size={20} color="#2f7d32" />
       <Text style={styles.metricLabel}>{label}</Text>
       <Text style={styles.metricValue} numberOfLines={2}>
         {value}
@@ -200,7 +284,6 @@ function Bullet({ text }: { text: string }) {
 function ImpactBlock({ impact }: { impact: VulnerableCrop }) {
   return (
     <View style={styles.impactBlock}>
-      <Text style={styles.impactCrop}>{impact.cropType}</Text>
       <Text style={styles.impactLabel}>Damage</Text>
       <Text style={styles.bodyText}>{impact.damageType}</Text>
       <View style={styles.durationRow}>
@@ -355,32 +438,77 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_700Bold', fontWeight: '800',
   },
   metrics: {
+    alignSelf: 'stretch',
+    borderBottomColor: '#eef0ef',
+    borderBottomWidth: 0,
+    borderTopColor: '#eef0ef',
+    borderTopWidth: 1,
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
     gap: 10,
-    marginBottom: 18,
+    marginTop: 10,
+    paddingTop: 10,
   },
   metric: {
-    backgroundColor: '#fff',
-    borderColor: '#eef0ef',
-    borderRadius: 14,
-    borderWidth: 1,
+    alignItems: 'center',
     flex: 1,
-    minWidth: '47%',
-    minHeight: 112,
-    padding: 12,
+    justifyContent: 'center',
+    minWidth: 0,
   },
   metricLabel: {
     color: '#6b7280',
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: 'Outfit_500Medium', fontWeight: '500',
-    marginTop: 10,
+    textAlign: 'center',
   },
   metricValue: {
     color: '#111827',
-    fontSize: 15,
+    fontSize: 12,
     fontFamily: 'Outfit_700Bold', fontWeight: '900',
-    marginTop: 5,
+    marginTop: 3,
+    textAlign: 'center',
+  },
+  cropToggle: {
+    backgroundColor: '#fff',
+    borderColor: '#dcefe2',
+    borderRadius: 15,
+    borderWidth: 1,
+    marginBottom: 6,
+    padding: 10,
+  },
+  cropToggleHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+  },
+  cropToggleButton: {
+    alignItems: 'center',
+    backgroundColor: '#eaf8ee',
+    borderRadius: 16,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
+  },
+  cropToggleButtonDisabled: {
+    backgroundColor: '#f3f4f6',
+  },
+  cropToggleCopy: {
+    alignItems: 'center',
+    flex: 1,
+    minWidth: 0,
+  },
+  cropToggleEyebrow: {
+    color: '#6b7280',
+    fontSize: 11,
+    fontFamily: 'Outfit_600SemiBold', fontWeight: '700',
+    marginBottom: 2,
+    textTransform: 'uppercase',
+  },
+  cropToggleTitle: {
+    color: '#111827',
+    fontSize: 18,
+    fontFamily: 'Outfit_700Bold', fontWeight: '900',
+    textAlign: 'center',
   },
   section: {
     marginTop: 18,
@@ -435,16 +563,6 @@ const styles = StyleSheet.create({
   },
   impactBlock: {
     gap: 8,
-  },
-  impactCrop: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#eaf8ee',
-    borderRadius: 10,
-    color: '#207232',
-    fontSize: 13,
-    fontFamily: 'Outfit_700Bold', fontWeight: '900',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
   },
   impactLabel: {
     color: '#111827',
