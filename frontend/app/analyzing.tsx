@@ -2,11 +2,13 @@ import { useUser } from '@clerk/expo';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+import { enqueuePendingReport } from '@/lib/report-queue';
+import { ReportSubmissionError, submitReport } from '@/lib/report-submit';
+
 const STEPS = [
   { icon: 'check-circle' as const, title: 'Photo received', detail: 'Upload complete' },
   { icon: 'generating-tokens' as const, title: 'Identifying pest', detail: 'with Gemini AI engine' },
@@ -21,6 +23,8 @@ export default function AnalyzingScreen() {
   const { imageUri } = useLocalSearchParams<{ imageUri?: string }>();
   const [activeStep, setActiveStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [queued, setQueued] = useState(false);
+  const startedRef = useRef(false);
   const decodedImageUri = useMemo(
     () => (imageUri ? decodeURIComponent(imageUri) : ''),
     [imageUri]
@@ -34,25 +38,54 @@ export default function AnalyzingScreen() {
   }, []);
 
   useEffect(() => {
+    if (!queued) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      router.replace('/(tabs)/my-reports');
+    }, 1800);
+
+    return () => clearTimeout(timer);
+  }, [queued, router]);
+
+  useEffect(() => {
     if (!decodedImageUri) {
       setError('Missing image.');
       return;
     }
-    if (!API_BASE_URL) {
-      setError('Missing EXPO_PUBLIC_API_BASE_URL.');
+    if (startedRef.current) {
       return;
     }
+    startedRef.current = true;
 
     let cancelled = false;
-    submitReport(decodedImageUri, user?.id)
+    const payload = {
+      cropType: 'unknown crop',
+      imageUri: decodedImageUri,
+      latitude: 38.5449,
+      longitude: -121.7405,
+      reporterUserId: user?.id,
+    };
+
+    submitReport(payload)
       .then((reportId) => {
         if (!cancelled) {
           setActiveStep(STEPS.length - 1);
           router.replace(`/alert/${reportId}`);
         }
       })
-      .catch((err) => {
+      .catch(async (err) => {
         if (!cancelled) {
+          if (err instanceof ReportSubmissionError && err.retryable) {
+            await enqueuePendingReport(payload);
+            if (!cancelled) {
+              setQueued(true);
+              setActiveStep(0);
+            }
+            return;
+          }
+
           setError(err instanceof Error ? err.message : 'Analysis failed.');
         }
       });
@@ -72,43 +105,49 @@ export default function AnalyzingScreen() {
             <MaterialIcons name="document-scanner" size={18} color="#5f6f2c" />
             <Text style={styles.scanText}>Scanning...</Text>
           </View>
-          <View style={styles.scanLabels}>
-            <Text style={styles.scanLabel}>L1|R</Text>
-            <Text style={styles.scanLabel}>ORMATBAE</Text>
-            <Text style={styles.scanLabel}>MONIDOR.</Text>
-            <Text style={styles.scanLabel}>ANANZING</Text>
-          </View>
         </View>
       </View>
 
-      <View style={styles.stepsCard}>
-        {STEPS.map((step, index) => {
-          const done = index < activeStep;
-          const active = index === activeStep;
-          return (
-            <View key={step.title} style={styles.stepRow}>
-              {index < STEPS.length - 1 ? (
-                <View style={[styles.stepLine, (done || active) && styles.stepLineActive]} />
-              ) : null}
-              <View style={[styles.stepDot, done && styles.stepDotDone, active && styles.stepDotActive]}>
-                <MaterialIcons
-                  name={done ? 'check' : step.icon}
-                  size={16}
-                  color={done || active ? '#fff' : '#d8ddd4'}
-                />
-              </View>
-              <View style={styles.stepCopy}>
-                <Text style={[styles.stepTitle, active && styles.stepTitleActive]}>{step.title}</Text>
-                {step.detail ? (
-                  <Text style={[styles.stepDetail, active && styles.stepDetailActive]}>{step.detail}</Text>
+      {!queued ? (
+        <View style={styles.stepsCard}>
+          {STEPS.map((step, index) => {
+            const done = index < activeStep;
+            const active = index === activeStep;
+            return (
+              <View key={step.title} style={styles.stepRow}>
+                {index < STEPS.length - 1 ? (
+                  <View style={[styles.stepLine, (done || active) && styles.stepLineActive]} />
                 ) : null}
+                <View style={[styles.stepDot, done && styles.stepDotDone, active && styles.stepDotActive]}>
+                  <MaterialIcons
+                    name={done ? 'check' : step.icon}
+                    size={16}
+                    color={done || active ? '#fff' : '#d8ddd4'}
+                  />
+                </View>
+                <View style={styles.stepCopy}>
+                  <Text style={[styles.stepTitle, active && styles.stepTitleActive]}>{step.title}</Text>
+                  {step.detail ? (
+                    <Text style={[styles.stepDetail, active && styles.stepDetailActive]}>{step.detail}</Text>
+                  ) : null}
+                </View>
               </View>
-            </View>
-          );
-        })}
-      </View>
+            );
+          })}
+        </View>
+      ) : null}
 
-      {error ? (
+      {queued ? (
+        <View style={styles.errorCard}>
+          <Text style={styles.errorTitle}>Saved for upload</Text>
+          <Text style={styles.offlineText}>
+            No internet connection right now. Your report is saved on this device and will upload automatically when service returns.
+          </Text>
+          <Pressable style={styles.retryButton} onPress={() => router.replace('/(tabs)/my-reports')}>
+            <Text style={styles.retryText}>View Pending Report</Text>
+          </Pressable>
+        </View>
+      ) : error ? (
         <View style={styles.errorCard}>
           <Text style={styles.errorText}>{error}</Text>
           <Pressable style={styles.retryButton} onPress={() => router.back()}>
@@ -118,31 +157,6 @@ export default function AnalyzingScreen() {
       ) : null}
     </SafeAreaView>
   );
-}
-
-async function submitReport(imageUri: string, reporterUserId?: string): Promise<string> {
-  const formData = new FormData();
-  formData.append('image', {
-    uri: imageUri,
-    name: imageUri.split('/').pop()?.split('?')[0] || 'report-image.jpg',
-    type: imageUri.toLowerCase().includes('.png') ? 'image/png' : 'image/jpeg',
-  } as unknown as Blob);
-  formData.append('crop_type', 'unknown crop');
-  formData.append('latitude', '38.5449');
-  formData.append('longitude', '-121.7405');
-  if (reporterUserId) {
-    formData.append('reporter_user_id', reporterUserId);
-  }
-
-  const response = await fetch(`${API_BASE_URL?.replace(/\/$/, '')}/reports`, {
-    method: 'POST',
-    body: formData,
-  });
-  if (!response.ok) {
-    throw new Error(await response.text());
-  }
-  const data = await response.json();
-  return data.report_id;
 }
 
 const styles = StyleSheet.create({
@@ -246,7 +260,7 @@ const styles = StyleSheet.create({
     width: 2,
   },
   stepLineActive: {
-    backgroundColor: '#9eaf68',
+    backgroundColor: '#2d4a3e',
   },
   stepDot: {
     alignItems: 'center',
@@ -258,10 +272,10 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   stepDotActive: {
-    backgroundColor: '#64702f',
+    backgroundColor: '#2d4a3e',
   },
   stepDotDone: {
-    backgroundColor: '#b9cc68',
+    backgroundColor: '#2f7d32',
   },
   stepCopy: {
     flex: 1,
@@ -282,7 +296,7 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   stepDetailActive: {
-    color: '#64702f',
+    color: '#2f7d32',
   },
   errorCard: {
     gap: 12,
@@ -292,9 +306,23 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_500Medium',
     textAlign: 'center',
   },
+  errorTitle: {
+    color: '#111827',
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 17,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  offlineText: {
+    color: '#4b5563',
+    fontFamily: 'Outfit_500Medium',
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
   retryButton: {
     alignItems: 'center',
-    backgroundColor: '#111',
+    backgroundColor: '#2d4a3e',
     borderRadius: 12,
     padding: 14,
   },

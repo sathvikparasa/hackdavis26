@@ -16,6 +16,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 
 import { TutorialOverlay } from '@/components/TutorialOverlay'
 import { useColorScheme } from '@/hooks/use-color-scheme'
+import { OfflineReportWorker } from '@/lib/offline-report-worker'
 import { PushNotificationsBootstrap } from '@/lib/push-notifications'
 import { TutorialProvider } from '@/lib/tutorial'
 
@@ -51,6 +52,7 @@ export default function RootLayout() {
       <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <PushNotificationsBootstrap />
+          <OfflineReportWorker />
           <TutorialProvider>
             <Stack>
               <Stack.Screen name="index" options={{ headerShown: false }} />
