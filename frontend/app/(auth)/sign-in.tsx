@@ -162,8 +162,8 @@ export default function SignInScreen() {
         </Animated.View>
 
         <View style={styles.headerSection}>
-          <Text style={styles.heading}>{mode === 'signIn' ? 'Welcome back!' : 'Create Account'}</Text>
-          <Text style={styles.subheading}>{mode === 'signIn' ? 'Sign in to continue' : 'Sign up to get started'}</Text>
+          <Text style={styles.heading}>{mode === 'signIn' ? 'Sign In' : 'Sign Up'}</Text>
+          <Text style={styles.subheading}>{mode === 'signIn' ? '' : ''}</Text>
         </View>
 
         <View style={styles.form}>
@@ -233,7 +233,7 @@ export default function SignInScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f7faf5',
+    backgroundColor: '#fafafa',
   },
   logo: {
     alignSelf: 'center',
@@ -254,15 +254,15 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   heading: {
-    fontWeight: '700',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
     fontSize: 30,
-    color: '#191c1a',
+    color: '#111827',
     lineHeight: 36,
   },
   subheading: {
-    fontWeight: '500',
+    fontFamily: 'Outfit_500Medium', fontWeight: '500',
     fontSize: 16,
-    color: '#424844',
+    color: '#4b5563',
     lineHeight: 24,
     marginTop: 4,
   },
@@ -274,20 +274,20 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   label: {
-    fontWeight: '500',
+    fontFamily: 'Outfit_500Medium', fontWeight: '500',
     fontSize: 14,
     color: '#374151',
     lineHeight: 20,
   },
   input: {
-    backgroundColor: '#ecefea',
+    backgroundColor: '#f3f4f6',
     borderWidth: 1,
-    borderColor: '#c2c8c2',
+    borderColor: '#d1d5db',
     borderRadius: 12,
     paddingHorizontal: 17,
     paddingVertical: 18,
     fontSize: 16,
-    color: '#191c1a',
+    color: '#111827',
   },
   button: {
     backgroundColor: '#71897b',
@@ -299,13 +299,13 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.55 },
   buttonText: {
     color: '#fff',
-    fontWeight: '700',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
     fontSize: 16,
     lineHeight: 24,
   },
   link: {
-    color: '#546522',
-    fontWeight: '600',
+    color: '#71897b',
+    fontFamily: 'Outfit_600SemiBold', fontWeight: '600',
     fontSize: 14,
     textAlign: 'center',
     marginTop: 4,
@@ -326,13 +326,13 @@ const styles = StyleSheet.create({
   digitInput: {
     width: 48,
     height: 64,
-    backgroundColor: '#f1f4ef',
+    backgroundColor: '#f3f4f6',
     borderBottomWidth: 2,
-    borderBottomColor: '#c2c8c2',
+    borderBottomColor: '#d1d5db',
     borderTopLeftRadius: 8,
     borderTopRightRadius: 8,
     fontSize: 28,
-    color: '#191c1a',
+    color: '#111827',
     textAlign: 'center',
   },
 })

@@ -14,5 +14,5 @@ export default function ReportScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0f1a0f' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  text: { color: '#4ade80', fontSize: 18, fontWeight: '600' },
+  text: { color: '#71897b', fontSize: 18, fontWeight: '600' },
 });

@@ -1,4 +1,5 @@
 import { useAuth, useClerk, useSignIn, useSignUp, useUser } from '@clerk/expo'
+import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import { type Href, useRouter } from 'expo-router'
 import React from 'react'
 import {
@@ -18,7 +19,7 @@ import LoginSvg from '@/assets/illustrations/login.svg'
 import SignUpSvg from '@/assets/illustrations/sign-up.svg'
 import MfaSvg from '@/assets/illustrations/mfa.svg'
 import AnticipateLogoSvg from '@/anticipate_logo.svg'
-import { upsertProfile } from '@/lib/supabase'
+import { supabase, upsertProfile } from '@/lib/supabase'
 
 const DIGIT_COUNT = 6
 
@@ -197,11 +198,28 @@ function AuthForm() {
   )
 }
 
+type UserReport = {
+  id: string
+  pest_name: string | null
+  crop_type: string | null
+  created_at: string | null
+  confidence: number | null
+}
+
+const SETTINGS = [
+  { key: 'notifications', label: 'Notification Settings', icon: 'notifications-none' as const },
+  { key: 'sources',       label: 'Data Sources',          icon: 'storage' as const },
+  { key: 'support',       label: 'Help & Support',        icon: 'help-outline' as const },
+  { key: 'about',         label: 'About',                 icon: 'info-outline' as const },
+]
+
 export default function ProfilePage() {
   const { isSignedIn, isLoaded } = useAuth()
   const { user } = useUser()
   const { signOut } = useClerk()
   const router = useRouter()
+  const [reports, setReports] = React.useState<UserReport[]>([])
+  const [reportsLoading, setReportsLoading] = React.useState(true)
 
   React.useEffect(() => {
     if (user) {
@@ -210,8 +228,23 @@ export default function ProfilePage() {
     }
   }, [user?.id])
 
-  if (!isLoaded) return <View style={{ flex: 1, backgroundColor: '#f7faf5' }} />
+  React.useEffect(() => {
+    if (!user) return
+    setReportsLoading(true)
+    supabase
+      .from('reports')
+      .select('id, pest_name, crop_type, created_at, confidence')
+      .eq('clerk_user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20)
+      .then(({ data }) => {
+        setReports(data ?? [])
+        setReportsLoading(false)
+      })
+      .catch(() => setReportsLoading(false))
+  }, [user?.id])
 
+  if (!isLoaded) return <View style={{ flex: 1, backgroundColor: '#fafafa' }} />
   if (!isSignedIn) return <AuthForm />
 
   const email = user?.emailAddresses[0]?.emailAddress ?? ''
@@ -219,44 +252,106 @@ export default function ProfilePage() {
   const initials = name
     ? name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
     : email.slice(0, 2).toUpperCase()
+  const memberSince = user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '—'
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.avatarCircle}>
-        <Text style={styles.avatarText}>{initials}</Text>
-      </View>
-
-      {name ? <Text style={styles.name}>{name}</Text> : null}
-      <Text style={styles.email}>{email}</Text>
-
-      <View style={styles.card}>
-        <Text style={styles.cardLabel}>Account</Text>
-        <View style={styles.row}>
-          <Text style={styles.rowLabel}>Email</Text>
-          <Text style={styles.rowValue}>{email}</Text>
+    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.avatarCircle}>
+          <Text style={styles.avatarText}>{initials}</Text>
         </View>
-        <View style={[styles.row, { borderBottomWidth: 0 }]}>
-          <Text style={styles.rowLabel}>Member since</Text>
-          <Text style={styles.rowValue}>
-            {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : '—'}
-          </Text>
+        <View style={styles.headerInfo}>
+          {name ? <Text style={styles.name}>{name}</Text> : null}
+          <Text style={styles.email}>{email}</Text>
+          <Text style={styles.memberSince}>Member since {memberSince}</Text>
         </View>
       </View>
 
+      {/* My Reports */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>My Reports</Text>
+        {reportsLoading ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyText}>Loading…</Text>
+          </View>
+        ) : reports.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <MaterialIcons name="eco" size={28} color="#d1d5db" />
+            <Text style={styles.emptyTitle}>No reports yet</Text>
+            <Text style={styles.emptyText}>Your pest reports will appear here.</Text>
+          </View>
+        ) : (
+          reports.map((r) => <ReportCard key={r.id} report={r} />)
+        )}
+      </View>
+
+      {/* Settings */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Settings</Text>
+        <View style={styles.settingsCard}>
+          {SETTINGS.map((item, i) => (
+            <Pressable
+              key={item.key}
+              style={({ pressed }) => [
+                styles.settingsRow,
+                i < SETTINGS.length - 1 && styles.settingsRowBorder,
+                pressed && { backgroundColor: '#f9fafb' },
+              ]}
+            >
+              <View style={styles.settingsLeft}>
+                <View style={styles.settingsIconBox}>
+                  <MaterialIcons name={item.icon} size={18} color="#71897b" />
+                </View>
+                <Text style={styles.settingsLabel}>{item.label}</Text>
+              </View>
+              <MaterialIcons name="chevron-right" size={20} color="#d1d5db" />
+            </Pressable>
+          ))}
+        </View>
+      </View>
+
+      {/* Sign out */}
       <Pressable
         style={({ pressed }) => [styles.signOutButton, pressed && { opacity: 0.7 }]}
-        onPress={async () => { await signOut(); router.replace('/(tabs)') }}
+        onPress={async () => { await signOut(); router.replace('/(tabs)' as Href) }}
       >
+        <MaterialIcons name="logout" size={16} color="#d32f2f" />
         <Text style={styles.signOutText}>Sign out</Text>
       </Pressable>
     </ScrollView>
   )
 }
 
+function ReportCard({ report }: { report: UserReport }) {
+  const confidence = report.confidence != null ? Math.round(report.confidence * 100) : null
+  const date = report.created_at
+    ? new Date(report.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : '—'
+  const confColor = confidence == null ? '#9ca3af' : confidence >= 70 ? '#71897b' : confidence >= 40 ? '#d97706' : '#d32f2f'
+
+  return (
+    <View style={styles.reportCard}>
+      <View style={styles.reportIconBox}>
+        <MaterialIcons name="bug-report" size={20} color="#71897b" />
+      </View>
+      <View style={styles.reportInfo}>
+        <Text style={styles.reportPest} numberOfLines={1}>{report.pest_name ?? 'Unknown pest'}</Text>
+        <Text style={styles.reportMeta}>{report.crop_type ?? 'Unknown crop'} · {date}</Text>
+      </View>
+      {confidence != null && (
+        <View style={[styles.confBadge, { backgroundColor: confColor + '18' }]}>
+          <Text style={[styles.confText, { color: confColor }]}>{confidence}%</Text>
+        </View>
+      )}
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
   authContainer: {
     flexGrow: 1,
-    backgroundColor: '#f7faf5',
+    backgroundColor: '#fafafa',
     paddingHorizontal: 32,
     paddingTop: 96,
     paddingBottom: 24,
@@ -268,19 +363,19 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 4,
   },
-  authTitle: { fontWeight: '700', fontSize: 26, color: '#191c1a', lineHeight: 32, alignSelf: 'flex-start' },
-  authSub: { fontWeight: '500', fontSize: 14, color: '#424844', alignSelf: 'flex-start' },
+  authTitle: { fontFamily: 'Outfit_700Bold', fontWeight: '700', fontSize: 26, color: '#111827', lineHeight: 32, alignSelf: 'flex-start' },
+  authSub: { fontFamily: 'Outfit_500Medium', fontWeight: '500', fontSize: 14, color: '#4b5563', alignSelf: 'flex-start' },
   fieldGroup: { gap: 6, width: '100%' },
-  label: { fontWeight: '500', fontSize: 14, color: '#374151' },
+  label: { fontFamily: 'Outfit_500Medium', fontWeight: '500', fontSize: 14, color: '#374151' },
   input: {
-    backgroundColor: '#ecefea',
+    backgroundColor: '#f3f4f6',
     borderWidth: 1,
-    borderColor: '#c2c8c2',
+    borderColor: '#d1d5db',
     borderRadius: 12,
     paddingHorizontal: 17,
     paddingVertical: 16,
     fontSize: 16,
-    color: '#191c1a',
+    color: '#111827',
   },
   btn: {
     backgroundColor: '#71897b',
@@ -291,47 +386,83 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   btnDisabled: { opacity: 0.55 },
-  btnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  link: { color: '#546522', fontWeight: '600', fontSize: 14, textAlign: 'center' },
+  btnText: { color: '#fff', fontFamily: 'Outfit_700Bold', fontWeight: '700', fontSize: 16 },
+  link: { color: '#71897b', fontFamily: 'Outfit_600SemiBold', fontWeight: '600', fontSize: 14, textAlign: 'center' },
   error: { color: '#d32f2f', fontSize: 13 },
   digitRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 4 },
   digitGap: { width: 16 },
   digitInput: {
     width: 44, height: 58,
-    backgroundColor: '#f1f4ef',
-    borderBottomWidth: 2, borderBottomColor: '#c2c8c2',
+    backgroundColor: '#f3f4f6',
+    borderBottomWidth: 2, borderBottomColor: '#d1d5db',
     borderTopLeftRadius: 8, borderTopRightRadius: 8,
-    fontSize: 24, color: '#191c1a', textAlign: 'center',
+    fontSize: 24, color: '#111827', textAlign: 'center',
   },
   container: {
-    padding: 24, paddingTop: 60, alignItems: 'center',
-    backgroundColor: '#f7f7f7', minHeight: '100%',
+    paddingHorizontal: 20,
+    paddingTop: 64,
+    paddingBottom: 120,
+    backgroundColor: '#fafafa',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 28,
   },
   avatarCircle: {
-    width: 80, height: 80, borderRadius: 40,
-    backgroundColor: '#4caf50', alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+    width: 64, height: 64, borderRadius: 32,
+    backgroundColor: '#71897b', alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
   },
-  avatarText: { color: '#fff', fontSize: 28, fontWeight: '700' },
-  name: { fontSize: 22, fontWeight: '700', color: '#1a1a1a', marginBottom: 4 },
-  email: { fontSize: 14, color: '#666', marginBottom: 32 },
-  card: {
-    width: '100%', backgroundColor: '#fff', borderRadius: 12,
-    padding: 16, marginBottom: 24,
-    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+  avatarText: { color: '#fff', fontSize: 22, fontFamily: 'Outfit_700Bold', fontWeight: '700' },
+  headerInfo: { flex: 1, gap: 2 },
+  name: { fontSize: 18, fontFamily: 'Outfit_700Bold', fontWeight: '700', color: '#111827' },
+  email: { fontSize: 13, fontFamily: 'Outfit_400Regular', fontWeight: '400', color: '#6b7280' },
+  memberSince: { fontSize: 12, fontFamily: 'Outfit_400Regular', fontWeight: '400', color: '#9ca3af', marginTop: 2 },
+  section: { marginBottom: 24 },
+  sectionTitle: {
+    fontSize: 12, fontFamily: 'Outfit_700Bold', fontWeight: '700', color: '#9ca3af',
+    textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10,
   },
-  cardLabel: {
-    fontSize: 12, fontWeight: '700', color: '#999',
-    textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12,
+  emptyCard: {
+    backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#e5e7eb',
+    paddingVertical: 28, paddingHorizontal: 20, alignItems: 'center', gap: 6,
   },
-  row: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#eee',
+  emptyTitle: { fontSize: 15, fontFamily: 'Outfit_600SemiBold', fontWeight: '600', color: '#374151' },
+  emptyText: { fontSize: 13, fontFamily: 'Outfit_400Regular', fontWeight: '400', color: '#9ca3af', textAlign: 'center' },
+  reportCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb',
+    padding: 14, marginBottom: 8,
   },
-  rowLabel: { color: '#444', fontSize: 15 },
-  rowValue: { color: '#888', fontSize: 15 },
+  reportIconBox: {
+    width: 38, height: 38, borderRadius: 10,
+    backgroundColor: '#f0f4f2', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  reportInfo: { flex: 1 },
+  reportPest: { fontSize: 15, fontFamily: 'Outfit_600SemiBold', fontWeight: '600', color: '#111827' },
+  reportMeta: { fontSize: 12, fontFamily: 'Outfit_400Regular', fontWeight: '400', color: '#9ca3af', marginTop: 2 },
+  confBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
+  confText: { fontSize: 12, fontFamily: 'Outfit_700Bold', fontWeight: '700' },
+  settingsCard: {
+    backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#e5e7eb', overflow: 'hidden',
+  },
+  settingsRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 14,
+  },
+  settingsRowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f3f4f6' },
+  settingsLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  settingsIconBox: {
+    width: 32, height: 32, borderRadius: 8,
+    backgroundColor: '#f0f4f2', alignItems: 'center', justifyContent: 'center',
+  },
+  settingsLabel: { fontSize: 15, fontFamily: 'Outfit_500Medium', fontWeight: '500', color: '#111827' },
   signOutButton: {
-    width: '100%', borderWidth: 1.5, borderColor: '#d32f2f',
-    borderRadius: 10, paddingVertical: 14, alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderWidth: 1.5, borderColor: '#fca5a5', borderRadius: 12,
+    paddingVertical: 14, marginTop: 4,
   },
-  signOutText: { color: '#d32f2f', fontWeight: '700', fontSize: 15 },
+  signOutText: { color: '#d32f2f', fontFamily: 'Outfit_600SemiBold', fontWeight: '600', fontSize: 15 },
 })

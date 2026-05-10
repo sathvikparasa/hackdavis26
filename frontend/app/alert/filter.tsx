@@ -42,7 +42,7 @@ const PESTS: Option[] = [
 type SeverityOpt = Option & { color: string };
 
 const SEVERITY: SeverityOpt[] = [
-  { label: 'All',      icon: 'apps',         color: '#1a2e1a' },
+  { label: 'All',      icon: 'apps',         color: '#2d4a3e' },
   { label: 'High',     icon: 'warning',      color: '#ba1a1a' },
   { label: 'Moderate', icon: 'flag',         color: '#d97706' },
   { label: 'Low',      icon: 'check-circle', color: '#238a3b' },
@@ -111,7 +111,7 @@ export default function FilterScreen() {
               return (
                 <Pressable key={opt.label} style={styles.gridItem4} onPress={() => toggle(opt.label, selectedCrops, setSelectedCrops, 'All Crops')}>
                   <View style={[styles.iconBox, active && styles.iconBoxActive]}>
-                    <MaterialIcons name={opt.icon} size={18} color={active ? '#fff' : '#424844'} />
+                    <MaterialIcons name={opt.icon} size={18} color={active ? '#fff' : '#4b5563'} />
                   </View>
                   <Text style={[styles.itemLabel, active && styles.itemLabelActive]} numberOfLines={1}>
                     {opt.label}
@@ -133,7 +133,7 @@ export default function FilterScreen() {
               return (
                 <Pressable key={opt.label} style={styles.gridItem5} onPress={() => toggle(opt.label, selectedPests, setSelectedPests, 'All Pests')}>
                   <View style={[styles.iconBox, active && styles.iconBoxActive]}>
-                    <MaterialIcons name={opt.icon} size={18} color={active ? '#fff' : '#424844'} />
+                    <MaterialIcons name={opt.icon} size={18} color={active ? '#fff' : '#4b5563'} />
                   </View>
                   <Text style={[styles.itemLabel, active && styles.itemLabelActive]} numberOfLines={1}>
                     {opt.label}
@@ -155,9 +155,9 @@ export default function FilterScreen() {
               return (
                 <Pressable key={opt.label} style={styles.gridItem4} onPress={() => toggle(opt.label, selectedSeverities, setSelectedSeverities, 'All')}>
                   <View style={[styles.iconBox, active && { backgroundColor: opt.color + '22', borderColor: opt.color, borderWidth: 2 }]}>
-                    <MaterialIcons name={opt.icon} size={18} color={active ? opt.color : '#424844'} />
+                    <MaterialIcons name={opt.icon} size={18} color={active ? opt.color : '#4b5563'} />
                   </View>
-                  <Text style={[styles.itemLabel, active && { color: opt.color, fontWeight: '700' }]}>
+                  <Text style={[styles.itemLabel, active && { color: opt.color, fontFamily: 'Outfit_700Bold', fontWeight: '700' }]}>
                     {opt.label}
                   </Text>
                 </Pressable>
@@ -180,7 +180,7 @@ export default function FilterScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#f7faf5',
+    backgroundColor: '#fafafa',
   },
   header: {
     flexDirection: 'row',
@@ -201,13 +201,13 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
     color: '#111827',
   },
   resetText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#546522',
+    fontFamily: 'Outfit_600SemiBold', fontWeight: '600',
+    color: '#71897b',
   },
   body: {
     flex: 1,
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 11,
-    fontWeight: '700',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
     color: '#9ca3af',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
@@ -265,25 +265,25 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   iconBoxActive: {
-    backgroundColor: '#1a2e1a',
-    borderColor: '#1a2e1a',
+    backgroundColor: '#2d4a3e',
+    borderColor: '#2d4a3e',
   },
   itemLabel: {
     fontSize: 10,
-    fontWeight: '600',
+    fontFamily: 'Outfit_600SemiBold', fontWeight: '600',
     color: '#6b7280',
     textAlign: 'center',
   },
   itemLabelActive: {
-    color: '#1a2e1a',
-    fontWeight: '700',
+    color: '#2d4a3e',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
   },
   footer: {
     paddingHorizontal: 20,
     paddingTop: 10,
   },
   applyBtn: {
-    backgroundColor: '#1a2e1a',
+    backgroundColor: '#2d4a3e',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
@@ -291,6 +291,6 @@ const styles = StyleSheet.create({
   applyText: {
     color: '#fff',
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
   },
 });

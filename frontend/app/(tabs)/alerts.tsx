@@ -65,7 +65,7 @@ export default function AlertsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.feedSection}>
           <Text style={styles.sectionHeading}>Alerts</Text>
@@ -86,7 +86,7 @@ export default function AlertsScreen() {
               style={[styles.filterBtn, hasActiveFilters && styles.filterBtnActive]}
               onPress={() => router.push('/alert/filter')}
             >
-              <MaterialIcons name="tune" size={18} color={hasActiveFilters ? '#fff' : '#424844'} />
+              <MaterialIcons name="tune" size={18} color={hasActiveFilters ? '#fff' : '#4b5563'} />
             </Pressable>
           </View>
 
@@ -211,7 +211,7 @@ function AlertCard({ alert, onPress, onViewMap }: { alert: AlertItem; onPress: (
             </Text>
             <Pressable style={styles.viewMapBtn} onPress={(e) => { e.stopPropagation?.(); onViewMap(); }}>
               <Text style={styles.viewMapText}>Map</Text>
-              <MaterialIcons name="chevron-right" size={13} color="#1a2e1a" />
+              <MaterialIcons name="chevron-right" size={13} color="#2d4a3e" />
             </Pressable>
           </View>
         </View>
@@ -241,7 +241,7 @@ function StateMessage({
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#f7faf5',
+    backgroundColor: '#fafafa',
   },
   content: {
     paddingHorizontal: 20,
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   sectionHeading: {
     color: '#111827',
     fontSize: 28,
-    fontWeight: '800',
+    fontFamily: 'Outfit_700Bold', fontWeight: '800',
     letterSpacing: -0.5,
   },
   searchRow: {
@@ -286,8 +286,8 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: '#191c1a',
-    fontWeight: '500',
+    color: '#111827',
+    fontFamily: 'Outfit_500Medium', fontWeight: '500',
   },
   filterBtn: {
     alignItems: 'center',
@@ -305,8 +305,8 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   filterBtnActive: {
-    backgroundColor: '#1a2e1a',
-    borderColor: '#1a2e1a',
+    backgroundColor: '#2d4a3e',
+    borderColor: '#2d4a3e',
   },
   chipsRow: {
     marginTop: -4,
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   chip: {
-    backgroundColor: '#1a2e1a',
+    backgroundColor: '#2d4a3e',
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 5,
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
   chipText: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
   },
   list: {
     gap: 12,
@@ -365,13 +365,13 @@ const styles = StyleSheet.create({
   cardTitle: {
     color: '#111827',
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
     lineHeight: 22,
   },
   cropLabel: {
     color: '#9ca3af',
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'Outfit_600SemiBold', fontWeight: '600',
   },
   metaRow: {
     flexDirection: 'row',
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
   metaText: {
     color: '#9ca3af',
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'Outfit_600SemiBold', fontWeight: '600',
     flexShrink: 1,
   },
   metaDot: {
@@ -404,11 +404,11 @@ const styles = StyleSheet.create({
   affectingText: {
     color: '#6b7280',
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: 'Outfit_600SemiBold', fontWeight: '600',
   },
   affectingCrop: {
     color: '#374151',
-    fontWeight: '700',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
   },
   viewMapBtn: {
     flexDirection: 'row',
@@ -416,9 +416,9 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   viewMapText: {
-    color: '#1a2e1a',
+    color: '#2d4a3e',
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
   },
   stateCard: {
     alignItems: 'center',
@@ -432,12 +432,12 @@ const styles = StyleSheet.create({
   stateTitle: {
     color: '#111827',
     fontSize: 16,
-    fontWeight: '800',
+    fontFamily: 'Outfit_700Bold', fontWeight: '800',
   },
   stateDetail: {
     color: '#9ca3af',
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: 'Outfit_600SemiBold', fontWeight: '600',
     marginTop: 6,
     textAlign: 'center',
   },
@@ -450,8 +450,8 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   stateButtonText: {
-    color: '#1a2e1a',
+    color: '#2d4a3e',
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
   },
 });
