@@ -1,3 +1,5 @@
+import logging
+
 from app.config import get_settings
 from app.models import (
     ReportResponse,
@@ -11,9 +13,13 @@ from app.services.analysis import analyze_report
 from app.services.boundary_adjacency import calculate_boundary_adjacency_alerts
 from app.services.fields import get_candidate_farmer_fields, get_candidate_fields
 from app.services.irrigation import calculate_irrigation_alerts
+from app.services.push_notifications import notify_affected_field_owners
 from app.services.report_db import insert_report
 from app.services.spread import ADJACENCY_HOP_DISTANCE_MILES, calculate_spread
 from app.services.storage import upload_report_image
+
+
+logger = logging.getLogger(__name__)
 
 
 def submit_report(
@@ -127,6 +133,16 @@ def submit_report(
         analysis=analysis,
         spread=spread,
     )
+
+    try:
+        notify_affected_field_owners(
+            report_id=report_id,
+            reporter_user_id=reporter_user_id,
+            analysis=analysis,
+            alerts=spread.alerts,
+        )
+    except Exception as error:
+        logger.warning("Unable to send affected field push notifications: %s", error)
 
     return ReportResponse(
         report_id=report_id,

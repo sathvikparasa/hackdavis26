@@ -24,6 +24,7 @@ class Settings:
     supabase_secret_key: Optional[str] = None
     supabase_report_image_bucket: str = "report-images"
     clerk_issuer: Optional[str] = None
+    expo_push_access_token: Optional[str] = None
 
 
 def get_settings() -> Settings:
@@ -40,4 +41,5 @@ def get_settings() -> Settings:
         supabase_secret_key=os.getenv("SUPABASE_SECRET_KEY"),
         supabase_report_image_bucket=os.getenv("SUPABASE_REPORT_IMAGE_BUCKET", "report-images"),
         clerk_issuer=os.getenv("CLERK_ISSUER"),
+        expo_push_access_token=os.getenv("EXPO_PUSH_ACCESS_TOKEN"),
     )

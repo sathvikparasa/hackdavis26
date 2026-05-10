@@ -14,6 +14,7 @@ import { StatusBar } from 'expo-status-bar'
 import { useEffect } from 'react'
 
 import { useColorScheme } from '@/hooks/use-color-scheme'
+import { PushNotificationsBootstrap } from '@/lib/push-notifications'
 
 SplashScreen.preventAutoHideAsync()
 
@@ -45,6 +46,7 @@ export default function RootLayout() {
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <PushNotificationsBootstrap />
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="alert/[id]" options={{ headerShown: false }} />
