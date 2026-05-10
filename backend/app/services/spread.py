@@ -9,9 +9,7 @@ from app.models import (
     SpreadMethod,
     SpreadRequest,
     SpreadResponse,
-    Location,
 )
-from app.services.water import score_water_flow
 from app.services.weather import get_current_weather
 
 
@@ -85,10 +83,7 @@ def _score_field(
     score_parts: list[float] = []
 
     if SpreadMethod.adjacency in request.analysis.spread_methods and adjacency_match:
-        adjacency_score = _adjacency_score(
-            adjacency_match=adjacency_match,
-            travel_distance=travel_distance,
-        )
+        adjacency_score = _adjacency_score(adjacency_match=adjacency_match)
         matched_methods.append(SpreadMethod.adjacency)
         score_parts.append(adjacency_score)
         reasons.append(
@@ -111,24 +106,6 @@ def _score_field(
             matched_methods.append(SpreadMethod.wind)
             score_parts.append(wind_score)
             reasons.append("Field is aligned with current wind conditions")
-
-    if SpreadMethod.water in request.analysis.spread_methods:
-        water_match = score_water_flow(
-            source_location=Location(
-                latitude=request.source.latitude,
-                longitude=request.source.longitude,
-            ),
-            farm_location=Location(latitude=field.latitude, longitude=field.longitude),
-            flow_paths=request.water_flow_paths,
-            max_travel_hours=request.analysis.water_travel_hours,
-        )
-        if water_match is not None:
-            matched_methods.append(SpreadMethod.water)
-            score_parts.append(water_match.risk_score)
-            reasons.append(
-                "Field is downstream through connected water flow "
-                f"within {water_match.travel_hours:.1f} hours"
-            )
 
     if not score_parts:
         return None
@@ -190,14 +167,11 @@ def _build_adjacency_matches(request: SpreadRequest) -> dict[str, _AdjacencyMatc
     if SpreadMethod.adjacency not in request.analysis.spread_methods:
         return {}
 
-    max_radius = request.analysis.travel_distance or DEFAULT_TRAVEL_DISTANCE_MILES
-    hop_distance = min(ADJACENCY_HOP_DISTANCE_MILES, max_radius)
     affected_crops = _affected_crop_keys(request)
     unvisited = {
         field.id: field
         for field in request.fields
         if _crop_key(field.crop_type) in affected_crops
-        and _source_distance(request, field) <= max_radius
     }
     matches: dict[str, _AdjacencyMatch] = {}
     frontier: list[tuple[float, float, int]] = [
@@ -216,7 +190,7 @@ def _build_adjacency_matches(request: SpreadRequest) -> dict[str, _AdjacencyMatc
                     field.longitude,
                     field.latitude,
                 )
-                if trigger_distance > hop_distance:
+                if trigger_distance > ADJACENCY_HOP_DISTANCE_MILES:
                     continue
 
                 source_distance = _source_distance(request, field)
@@ -238,10 +212,11 @@ def _build_adjacency_matches(request: SpreadRequest) -> dict[str, _AdjacencyMatc
 
 def _adjacency_score(
     adjacency_match: _AdjacencyMatch,
-    travel_distance: float,
 ) -> float:
-    hop_distance = min(ADJACENCY_HOP_DISTANCE_MILES, travel_distance)
-    hop_score = _proximity_score(adjacency_match.trigger_distance, hop_distance)
+    hop_score = _proximity_score(
+        adjacency_match.trigger_distance,
+        ADJACENCY_HOP_DISTANCE_MILES,
+    )
     hop_penalty = 0.85 ** max(adjacency_match.hops - 1, 0)
     return max(0.05, hop_score * hop_penalty)
 

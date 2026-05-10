@@ -51,7 +51,8 @@
         {
           "photosPermission": "Allow Anticipate to choose pest photos from your library."
         }
-      ]
+      ],
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true,

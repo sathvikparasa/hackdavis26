@@ -1,0 +1,148 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Custom Boundary Multi-Hop Simulation</title>
+  <style>
+    :root { color-scheme: light; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      color: #0f172a;
+      background: #eef6f3;
+    }
+    main { padding: 34px; max-width: 1500px; margin: 0 auto; }
+    h1 { font-size: 34px; line-height: 1.05; margin: 0 0 8px; letter-spacing: 0; }
+    .subtitle { margin: 0 0 22px; color: #475569; font-size: 17px; max-width: 880px; }
+    .wrap { display: grid; grid-template-columns: minmax(0, 1fr) 410px; gap: 22px; align-items: start; }
+    .map-card, .panel {
+      background: rgba(255,255,255,0.9);
+      border: 1px solid rgba(148,163,184,0.35);
+      border-radius: 18px;
+      box-shadow: 0 20px 45px rgba(15,23,42,0.12);
+      overflow: hidden;
+    }
+    svg { width: 100%; height: auto; display: block; background: #ecfeff; }
+    .panel { padding: 20px; }
+    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+    .metric { border: 1px solid #dbeafe; border-radius: 12px; padding: 11px; background: #f8fafc; }
+    .metric strong { display: block; font-size: 11px; text-transform: uppercase; color: #64748b; letter-spacing: .08em; }
+    .metric span { display: block; margin-top: 5px; font-size: 22px; font-weight: 850; color: #0f172a; }
+    .panel h2 { font-size: 15px; margin: 16px 0 8px; color: #334155; }
+    ul { padding-left: 18px; margin: 0; color: #334155; line-height: 1.42; }
+    li { margin: 7px 0; }
+    details { margin-top: 18px; }
+    summary { cursor: pointer; color: #2563eb; font-weight: 700; }
+    pre { white-space: pre-wrap; background: #0f172a; color: #e2e8f0; padding: 14px; border-radius: 12px; font-size: 12px; max-height: 290px; overflow: auto; }
+    .legend { display: flex; flex-wrap: wrap; gap: 10px 16px; margin: 10px 0 20px; font-size: 14px; color: #334155; }
+    .swatch { display: inline-block; width: 16px; height: 16px; margin-right: 7px; vertical-align: -3px; border: 1px solid #64748b; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Custom Boundary Multi-Hop Simulation</h1>
+    <p class="subtitle">Boundary adjacency follows same-crop fields outward in discrete hops, while filtering unrelated crops and fields beyond the hop gap.</p>
+    <div class="legend"><span><span class="swatch" style="background:#2563eb"></span>reached by boundary hops</span><span><span class="swatch" style="background:#f8fafc"></span>same crop but not reached</span><span><span class="swatch" style="background:#fde68a"></span>unaffected crop</span><span><span class="swatch" style="background:#ef4444"></span>report location</span></div>
+    <div class="wrap">
+      <section class="map-card">
+        <svg viewBox="0 0 1100 720">
+          <defs><linearGradient id="fieldGradient" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#60a5fa" /><stop offset="100%" stop-color="#1d4ed8" /></linearGradient><linearGradient id="waterGradient" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#67e8f9" /><stop offset="100%" stop-color="#0e7490" /></linearGradient><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#1d4ed8" /></marker></defs><rect x="18" y="18" width="1064" height="684" rx="26" fill="#ffffff" stroke="#dbeafe" stroke-width="2" /><path d="M70 628 C240 568 345 674 514 610 C687 545 755 641 1010 574" fill="none" stroke="#e0f2fe" stroke-width="42" stroke-linecap="round" opacity="0.9" /><line x1="290.0" y1="418.7" x2="312.4" y2="418.7" stroke="#1d4ed8" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)" opacity="0.72" /><line x1="273.4" y1="387.0" x2="310.8" y2="333.2" stroke="#1d4ed8" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)" opacity="0.72" /><line x1="290.0" y1="418.7" x2="312.4" y2="418.7" stroke="#1d4ed8" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)" opacity="0.72" /><line x1="394.0" y1="417.5" x2="416.5" y2="416.7" stroke="#1d4ed8" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)" opacity="0.72" /><line x1="290.0" y1="418.7" x2="312.4" y2="418.7" stroke="#1d4ed8" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)" opacity="0.72" /><line x1="394.0" y1="417.5" x2="416.5" y2="416.7" stroke="#1d4ed8" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)" opacity="0.72" /><line x1="498.0" y1="417.9" x2="520.6" y2="419.3" stroke="#1d4ed8" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)" opacity="0.72" /><line x1="290.0" y1="418.7" x2="312.4" y2="418.7" stroke="#1d4ed8" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)" opacity="0.72" /><line x1="394.0" y1="417.5" x2="416.5" y2="416.7" stroke="#1d4ed8" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)" opacity="0.72" /><line x1="498.0" y1="417.9" x2="520.6" y2="419.3" stroke="#1d4ed8" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)" opacity="0.72" /><line x1="602.0" y1="419.6" x2="624.6" y2="418.1" stroke="#1d4ed8" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)" opacity="0.72" /><rect x="224.5" y="391.9" width="53.7" height="53.7" rx="6" fill="url(#fieldGradient)" stroke="#1d4ed8" stroke-width="2.5"  filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" /><text x="251.4" y="423.7" font-size="15" font-weight="900" text-anchor="middle" fill="#0f172a">A</text><text x="251.4" y="461.6" font-size="11" text-anchor="middle" fill="#374151">almonds</text><rect x="328.5" y="391.9" width="53.7" height="53.7" rx="6" fill="url(#fieldGradient)" stroke="#1d4ed8" stroke-width="2.5"  filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" /><text x="355.4" y="423.7" font-size="15" font-weight="900" text-anchor="middle" fill="#0f172a">B</text><text x="355.4" y="461.6" font-size="11" text-anchor="middle" fill="#374151">almonds</text><rect x="432.6" y="388.5" width="53.7" height="53.7" rx="6" fill="url(#fieldGradient)" stroke="#1d4ed8" stroke-width="2.5"  filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" /><text x="459.4" y="420.4" font-size="15" font-weight="900" text-anchor="middle" fill="#0f172a">C</text><text x="459.4" y="458.2" font-size="11" text-anchor="middle" fill="#374151">almonds</text><rect x="536.6" y="395.2" width="53.7" height="53.7" rx="6" fill="url(#fieldGradient)" stroke="#1d4ed8" stroke-width="2.5"  filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" /><text x="563.4" y="427.1" font-size="15" font-weight="900" text-anchor="middle" fill="#0f172a">D</text><text x="563.4" y="464.9" font-size="11" text-anchor="middle" fill="#374151">almonds</text><rect x="640.6" y="388.5" width="53.7" height="53.7" rx="6" fill="url(#fieldGradient)" stroke="#1d4ed8" stroke-width="2.5"  filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" /><text x="667.4" y="420.4" font-size="15" font-weight="900" text-anchor="middle" fill="#0f172a">E</text><text x="667.4" y="458.2" font-size="11" text-anchor="middle" fill="#374151">almonds</text><rect x="432.6" y="287.9" width="53.7" height="53.7" rx="6" fill="#fde68a" stroke="#b45309" stroke-width="2.5"  filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" /><text x="459.4" y="319.7" font-size="15" font-weight="900" text-anchor="middle" fill="#0f172a">F</text><text x="459.4" y="357.5" font-size="11" text-anchor="middle" fill="#374151">corn</text><rect x="803.3" y="391.9" width="53.7" height="53.7" rx="6" fill="#f8fafc" stroke="#94a3b8" stroke-width="2.5"  filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" /><text x="830.2" y="423.7" font-size="15" font-weight="900" text-anchor="middle" fill="#0f172a">G</text><text x="830.2" y="461.6" font-size="11" text-anchor="middle" fill="#374151">almonds</text><rect x="308.4" y="271.1" width="53.7" height="53.7" rx="6" fill="url(#fieldGradient)" stroke="#1d4ed8" stroke-width="2.5"  filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" /><text x="335.3" y="302.9" font-size="15" font-weight="900" text-anchor="middle" fill="#0f172a">H</text><text x="335.3" y="340.8" font-size="11" text-anchor="middle" fill="#374151">almonds</text><rect x="954.3" y="391.9" width="53.7" height="53.7" rx="6" fill="#f8fafc" stroke="#94a3b8" stroke-width="2.5"  filter="drop-shadow(0 6px 9px rgba(15,23,42,0.18))" /><text x="981.2" y="423.7" font-size="15" font-weight="900" text-anchor="middle" fill="#0f172a">I</text><text x="981.2" y="461.6" font-size="11" text-anchor="middle" fill="#374151">almonds</text><circle cx="251.4" cy="418.7" r="10" fill="#ef4444" stroke="#7f1d1d" stroke-width="3" /><line x1="243.4" y1="410.7" x2="209.4" y2="385.7" stroke="#7f1d1d" stroke-width="2" stroke-linecap="round" /><rect x="83.4" y="370.7" width="126" height="30" rx="15" fill="#fff1f2" stroke="#ef4444" stroke-width="2" /><text x="146.4" y="390.7" font-size="14" font-weight="900" text-anchor="middle" fill="#7f1d1d">report location</text>
+        </svg>
+      </section>
+      <aside class="panel">
+        <div class="metrics"><div class="metric"><strong>Hop radius</strong><span>0.5 mi</span></div><div class="metric"><strong>Reached fields</strong><span>6</span></div><div class="metric"><strong>Max hops</strong><span>4</span></div><div class="metric"><strong>Unaffected fields</strong><span>3</span></div></div>
+        <h2>What this proves</h2>
+        <ul><li><span>A reaches B, then C, then D, then E through boundary hops.</span></li><li><span>H is also reached from A.</span></li><li><span>F is corn, which is not listed as vulnerable for this pest.</span></li><li><span>G is almonds but separated by a gap larger than the hop distance.</span></li><li><span>I is almonds but too far from the boundary chain.</span></li></ul>
+        <details>
+          <summary>Raw simulation output</summary>
+          <pre>{
+  "adjacency_hop_miles": 0.5,
+  "expected_reached_ids": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "H"
+  ],
+  "reached": [
+    {
+      "field_id": "A",
+      "crop": "almonds",
+      "hops": 1,
+      "trigger_distance_miles": 0.0,
+      "source_distance_miles": 0.0,
+      "path": [
+        "A",
+        "A"
+      ]
+    },
+    {
+      "field_id": "B",
+      "crop": "almonds",
+      "hops": 1,
+      "trigger_distance_miles": 0.3,
+      "source_distance_miles": 0.62,
+      "path": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "field_id": "H",
+      "crop": "almonds",
+      "hops": 1,
+      "trigger_distance_miles": 0.439,
+      "source_distance_miles": 0.877,
+      "path": [
+        "A",
+        "H"
+      ]
+    },
+    {
+      "field_id": "C",
+      "crop": "almonds",
+      "hops": 2,
+      "trigger_distance_miles": 0.3,
+      "source_distance_miles": 1.24,
+      "path": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    {
+      "field_id": "D",
+      "crop": "almonds",
+      "hops": 3,
+      "trigger_distance_miles": 0.3,
+      "source_distance_miles": 1.86,
+      "path": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ]
+    },
+    {
+      "field_id": "E",
+      "crop": "almonds",
+      "hops": 4,
+      "trigger_distance_miles": 0.3,
+      "source_distance_miles": 2.48,
+      "path": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E"
+      ]
+    }
+  ]
+}</pre>
+        </details>
+      </aside>
+    </div>
+  </main>
+</body>
+</html>
