@@ -118,7 +118,7 @@ export default function ReportScreen() {
         <View style={styles.topBar}>
           <Text style={styles.headerTitle}>Take Photo</Text>
           <Pressable style={styles.headerIcon} hitSlop={10} onPress={flipCamera}>
-            <MaterialIcons name="flip-camera-ios" size={25} color="#191C1A" />
+            <MaterialIcons name="flip-camera-ios" size={25} color="#fff" />
           </Pressable>
         </View>
 
@@ -167,7 +167,7 @@ export default function ReportScreen() {
             <MaterialIcons
               name={flash === 'on' ? 'flash-on' : 'flash-off'}
               size={24}
-              color="#191C1A"
+              color="#fff"
             />
           </Pressable>
           <Pressable
@@ -183,7 +183,7 @@ export default function ReportScreen() {
             </View>
           </Pressable>
           <Pressable style={styles.secondaryControl} onPress={pickFromGallery}>
-            <MaterialIcons name="photo-library" size={24} color="#191C1A" />
+            <MaterialIcons name="photo-library" size={24} color="#fff" />
           </Pressable>
         </View>
 
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#71897b',
+    backgroundColor: '#2d4a3e',
     borderRadius: 20,
     position: 'absolute',
     right: 0,
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 22,
     height: 22,
-    borderColor: '#71897b',
+    borderColor: '#2d4a3e',
     borderWidth: 2.5,
   },
   cornerTopLeft: {
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#71897b',
+    backgroundColor: '#2d4a3e',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 36,
     borderWidth: 3,
-    borderColor: '#71897b',
+    borderColor: '#2d4a3e',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#71897b',
+    backgroundColor: '#2d4a3e',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
     right: 14,
   },
   zoomBadgeText: {
-    color: '#191C1A',
+    color: '#fff',
     fontFamily: 'Outfit_600SemiBold',
     fontSize: 12,
     fontWeight: '600',
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
   },
   permissionButton: {
     marginTop: 8,
-    backgroundColor: '#71897b',
+    backgroundColor: '#2d4a3e',
     borderRadius: 12,
     paddingHorizontal: 28,
     paddingVertical: 14,
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_600SemiBold',
     fontWeight: '600',
     fontSize: 15,
-    color: '#191C1A',
+    color: '#fff',
   },
 });
 

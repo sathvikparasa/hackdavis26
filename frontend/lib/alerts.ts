@@ -3,6 +3,7 @@ export type AlertSeverity = 'High' | 'Moderate' | 'Low';
 export type AlertItem = {
   id: string;
   reportId: string;
+  userId: string | null;
   pest: string;
   crop: string;
   vulnerableCropLabel: string;
@@ -27,6 +28,7 @@ export type AlertItem = {
 
 type ReportRow = {
   id: string;
+  reporter_user_id: string | null | undefined;
   pest_name: string | null;
   latitude: number | null;
   longitude: number | null;
@@ -92,7 +94,7 @@ const SUPABASE_PUBLISHABLE_KEY =
 
 export async function fetchAlerts(): Promise<AlertItem[]> {
   const reports = await supabaseGet<ReportRow[]>(
-    '/rest/v1/reports?select=id,pest_name,latitude,longitude,confidence,travel_distance,spread_methods,vulnerable_crop,created_at,image_bucket,image_path&order=created_at.desc&limit=100'
+    '/rest/v1/reports?select=id,reporter_user_id,pest_name,latitude,longitude,confidence,travel_distance,spread_methods,vulnerable_crop,created_at,image_bucket,image_path&order=created_at.desc&limit=100'
   );
 
   if (reports.length === 0) {
@@ -166,6 +168,7 @@ export async function fetchAlerts(): Promise<AlertItem[]> {
       return {
         id: report.id,
         reportId: report.id,
+        userId: report.reporter_user_id,
         pest,
         crop: vulnerableCropLabel,
         vulnerableCropLabel,
@@ -192,6 +195,7 @@ export async function fetchAlerts(): Promise<AlertItem[]> {
       };
     });
 }
+
 
 export async function fetchAlertById(id: string): Promise<AlertItem | null> {
   const alerts = await fetchAlerts();

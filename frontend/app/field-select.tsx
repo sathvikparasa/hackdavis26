@@ -144,10 +144,10 @@ const YOLO_COUNTY_BOUNDARY = [
   { latitude: 38.9247, longitude: -122.3762 },
 ];
 const YOLO_MASK_OUTER_BOUNDARY = [
-  { latitude: 35, longitude: -125 },
-  { latitude: 42, longitude: -125 },
-  { latitude: 42, longitude: -119 },
-  { latitude: 35, longitude: -119 },
+  { latitude: 80, longitude: -170 },
+  { latitude: 80, longitude: -10 },
+  { latitude: -80, longitude: -10 },
+  { latitude: -80, longitude: -170 },
 ];
 
 const localLocationSuggestions: LocationSuggestion[] = [
@@ -955,7 +955,7 @@ export default function FieldSelectScreen() {
             <Text style={styles.stepperTitle} numberOfLines={1}>
               {activeSavedFieldIndex >= 0
                 ? cropByFieldId[savedFields[activeSavedFieldIndex].id] || 'Saved field'
-                : 'My fields'}
+                : 'My Fields'}
             </Text>
             <Text style={styles.stepperMeta}>
               {activeSavedFieldIndex >= 0 ? activeSavedFieldIndex + 1 : savedFields.length} of {savedFields.length}

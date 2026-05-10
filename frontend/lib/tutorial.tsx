@@ -79,7 +79,7 @@ export const STEP_CONFIG: Record<Exclude<TutorialStepId, -1>, StepConfig> = {
   8: {
     // Open Map button is in center of empty state — card goes to top
     title: 'Open the Map',
-    body: "Tap 'Open Map' to view the field boundaries in your area. From the map you can select and save your own fields.",
+    body: "Tap 'Open Map' to view the field boundaries in your area. You might need to zoom in to see a field. From the map you can select and save your own fields.",
     cta: '',
     isAction: true,
     targetTab: '/(tabs)',

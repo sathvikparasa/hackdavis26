@@ -1,18 +1,22 @@
+import { useAuth } from '@clerk/expo';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AlertItem, AlertSeverity, fetchAlerts } from '@/lib/alerts';
+import { createSupabaseWithAccessToken } from '@/lib/supabase';
 import { getFilterState, subscribeFilterState } from '@/lib/filter-store';
 import { useTutorial } from '@/lib/tutorial';
 
@@ -25,6 +29,7 @@ const severityConfig: Record<AlertSeverity, { cardBg: string; accent: string }> 
 export default function AlertsScreen() {
   const router = useRouter();
   const { step, advance } = useTutorial();
+  const { userId, getToken } = useAuth();
 
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [query, setQuery] = useState('');
@@ -52,6 +57,18 @@ export default function AlertsScreen() {
 
   useEffect(() => { loadAlerts(); }, []);
 
+  async function handleDelete(alertId: string) {
+    setAlerts((prev) => prev.filter((a) => a.id !== alertId));
+    try {
+      const authedSupabase = createSupabaseWithAccessToken(() => getToken());
+      const { error } = await authedSupabase.from('reports').delete().eq('id', alertId);
+      if (error) throw error;
+    } catch (err) {
+      console.error('Delete failed:', err);
+      loadAlerts();
+    }
+  }
+
   const filteredAlerts = useMemo(
     () =>
       alerts.filter((alert) => {
@@ -70,7 +87,13 @@ export default function AlertsScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={loadAlerts} tintColor="#2d4a3e" colors={['#2d4a3e']} />
+        }
+      >
         <View style={styles.feedSection}>
           <Text style={styles.sectionHeading}>Alerts</Text>
 
@@ -119,6 +142,8 @@ export default function AlertsScreen() {
                   alert={alert}
                   onPress={() => { if (step === 1) advance(); router.push(`/alert/${alert.id}`); }}
                   onViewMap={() => router.push({ pathname: '/(tabs)/pest-map', params: { alertId: alert.id } })}
+                  isOwner={!!userId && alert.userId === userId}
+                  onDelete={() => handleDelete(alert.id)}
                 />
               ))
             )}
@@ -136,7 +161,19 @@ function pestTypeIcon(type: AlertItem['type']): keyof typeof MaterialIcons.glyph
   return 'bug-report';
 }
 
-function AlertCard({ alert, onPress, onViewMap }: { alert: AlertItem; onPress: () => void; onViewMap: () => void }) {
+function AlertCard({
+  alert,
+  onPress,
+  onViewMap,
+  isOwner,
+  onDelete,
+}: {
+  alert: AlertItem;
+  onPress: () => void;
+  onViewMap: () => void;
+  isOwner: boolean;
+  onDelete: () => void;
+}) {
   const cfg = severityConfig[alert.severity];
 
   const affectingCrops = [
@@ -151,55 +188,61 @@ function AlertCard({ alert, onPress, onViewMap }: { alert: AlertItem; onPress: (
     .slice(0, 2)
     .join(', ');
 
+  const renderLeftActions = () => {
+    if (!isOwner) return null;
+    return (
+      <Pressable style={styles.deleteAction} onPress={onDelete}>
+        <MaterialIcons name="delete" size={22} color="#fff" />
+      </Pressable>
+    );
+  };
+
   return (
-    <Pressable style={[styles.card, { backgroundColor: cfg.cardBg }]} onPress={onPress}>
-      <View style={styles.cardInner}>
-        {/* Severity bar */}
-        <View style={[styles.severityBar, { backgroundColor: cfg.accent }]} />
+    <Swipeable renderLeftActions={renderLeftActions} overshootLeft={false} friction={2}>
+      <Pressable style={[styles.card, { backgroundColor: cfg.cardBg }]} onPress={onPress}>
+        <View style={styles.cardInner}>
+          {/* Severity bar */}
+          <View style={[styles.severityBar, { backgroundColor: cfg.accent }]} />
 
-        {/* Image */}
-        <View style={styles.pestImageBox}>
-          {alert.imageUrl ? (
-            <Image source={{ uri: alert.imageUrl }} style={styles.pestImage} contentFit="cover" />
-          ) : (
-            <View style={[styles.pestImagePlaceholder, { backgroundColor: cfg.cardBg }]}>
-              <MaterialIcons name={pestTypeIcon(alert.type)} size={30} color={cfg.accent} />
-            </View>
-          )}
-        </View>
+          {/* Image */}
+          <View style={styles.pestImageBox}>
+            {alert.imageUrl ? (
+              <Image source={{ uri: alert.imageUrl }} style={styles.pestImage} contentFit="cover" />
+            ) : (
+              <View style={[styles.pestImagePlaceholder, { backgroundColor: cfg.cardBg }]}>
+                <MaterialIcons name={pestTypeIcon(alert.type)} size={30} color={cfg.accent} />
+              </View>
+            )}
+          </View>
 
-        {/* Content */}
-        <View style={styles.cardContent}>
-          <Text style={styles.cardTitle} numberOfLines={2}>{alert.pest}</Text>
-          <Text style={styles.cropLabel}>{alert.vulnerableCropLabel}</Text>
-          <View style={styles.metaRow}>
-            <View style={styles.metaItem}>
-              <MaterialIcons name="place" size={12} color="#9ca3af" />
-              <Text style={styles.metaText} numberOfLines={1}>{alert.distance}</Text>
-            </View>
-            <Text style={styles.metaDot}>·</Text>
-            <View style={styles.metaItem}>
-              <MaterialIcons name="access-time" size={12} color="#9ca3af" />
-              <Text style={styles.metaText} numberOfLines={1}>{alert.time}</Text>
-            </View>
-            <Text style={styles.metaDot}>·</Text>
-            <View style={styles.metaItem}>
-              <MaterialIcons name="radio-button-unchecked" size={12} color="#9ca3af" />
-              <Text style={styles.metaText} numberOfLines={1}>{alert.travelDistance}</Text>
+          {/* Content */}
+          <View style={styles.cardContent}>
+            <Text style={styles.cardTitle} numberOfLines={2}>{alert.pest}</Text>
+            <Text style={styles.cropLabel}>{alert.vulnerableCropLabel}</Text>
+            <View style={styles.metaRow}>
+              <View style={styles.metaItem}>
+                <MaterialIcons name="place" size={12} color="#9ca3af" />
+                <Text style={styles.metaText} numberOfLines={1}>{alert.distance}</Text>
+              </View>
+              <Text style={styles.metaDot}>·</Text>
+              <View style={styles.metaItem}>
+                <MaterialIcons name="access-time" size={12} color="#9ca3af" />
+                <Text style={styles.metaText} numberOfLines={1}>{alert.time}</Text>
+              </View>
+              </View>
+            <View style={[styles.cardFooter, { borderTopColor: cfg.accent + '40' }]}>
+              <Text style={styles.affectingText} numberOfLines={1}>
+                Affecting: <Text style={styles.affectingCrop}>{affectingCrops}</Text>
+              </Text>
+              <Pressable style={styles.viewMapBtn} onPress={(e) => { e.stopPropagation?.(); onViewMap(); }}>
+                <Text style={styles.viewMapText}>Map</Text>
+                <MaterialIcons name="chevron-right" size={13} color="#2d4a3e" />
+              </Pressable>
             </View>
           </View>
-          <View style={[styles.cardFooter, { borderTopColor: cfg.accent + '40' }]}>
-            <Text style={styles.affectingText} numberOfLines={1}>
-              Affecting: <Text style={styles.affectingCrop}>{affectingCrops}</Text>
-            </Text>
-            <Pressable style={styles.viewMapBtn} onPress={(e) => { e.stopPropagation?.(); onViewMap(); }}>
-              <Text style={styles.viewMapText}>Map</Text>
-              <MaterialIcons name="chevron-right" size={13} color="#2d4a3e" />
-            </Pressable>
-          </View>
         </View>
-      </View>
-    </Pressable>
+      </Pressable>
+    </Swipeable>
   );
 }
 
@@ -428,6 +471,14 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_400Regular', fontWeight: '400',
     marginTop: 6,
     textAlign: 'center',
+  },
+  deleteAction: {
+    backgroundColor: '#dc2626',
+    borderRadius: 14,
+    width: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
   },
   stateButton: {
     borderColor: '#e5e7eb',
