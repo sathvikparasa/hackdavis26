@@ -29,6 +29,7 @@ type AlertMapViewProps = {
   centerButtonTop: number;
   crops: string[];
   error: string | null;
+  focusedFieldId: number | null;
   hasActiveFilters: boolean;
   headerTop: number;
   loading: boolean;
@@ -51,6 +52,7 @@ export function AlertMapView({
   centerButtonTop,
   crops,
   error,
+  focusedFieldId,
   hasActiveFilters,
   headerTop,
   loading,
@@ -77,7 +79,7 @@ export function AlertMapView({
     [alerts, trimmedQuery.length]
   );
   const layersControlBottom =
-    selectedAlert && detailSheetHeight > 0
+    displayedAlert && detailSheetHeight > 0
       ? detailSheetHeight + LAYERS_BUTTON_SHEET_GAP
       : LAYERS_BUTTON_BOTTOM;
 
@@ -131,6 +133,7 @@ export function AlertMapView({
         onSelect={onSelectAlert}
         onClearSelection={onClearSelection}
         focusedLocation={null}
+        focusedFieldId={focusedFieldId}
         centerButtonTop={centerButtonTop}
         layersControlBottom={layersControlBottom}
       />
@@ -238,6 +241,7 @@ export function AlertMapView({
       {displayedAlert ? (
         <MapDetailSheet
           alert={displayedAlert}
+          onClose={onClearSelection}
           onLayout={(event) => setDetailSheetHeight(event.nativeEvent.layout.height)}
           onOpenAlert={() => onOpenAlert(displayedAlert.id)}
           translateY={detailSheetSlide}
@@ -249,11 +253,13 @@ export function AlertMapView({
 
 function MapDetailSheet({
   alert,
+  onClose,
   onLayout,
   onOpenAlert,
   translateY,
 }: {
   alert: AlertItem;
+  onClose: () => void;
   onLayout: (event: LayoutChangeEvent) => void;
   onOpenAlert: () => void;
   translateY: Animated.Value;
@@ -286,6 +292,9 @@ function MapDetailSheet({
             {alert.vulnerableCropLabel}
           </Text>
         </View>
+        <Pressable accessibilityLabel="Close alert" style={styles.closeButton} onPress={onClose}>
+          <Text style={styles.closeButtonText}>×</Text>
+        </Pressable>
       </View>
 
       <View style={styles.mapMetaLine}>
@@ -514,6 +523,20 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.08,
     shadowRadius: 18,
+  },
+  closeButton: {
+    alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+    borderRadius: 16,
+    height: 32,
+    justifyContent: 'center',
+    width: 32,
+  },
+  closeButtonText: {
+    color: '#6b7280',
+    fontSize: 24,
+    fontFamily: 'Outfit_700Bold', fontWeight: '700',
+    lineHeight: 27,
   },
   alertSuggestionTitle: {
     color: '#111827',

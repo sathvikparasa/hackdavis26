@@ -108,6 +108,28 @@ def list_reports_for_recompute() -> list[StoredReport]:
     return [_stored_report_from_row(row) for row in rows]
 
 
+def list_farmer_field_owner_user_ids() -> list[str]:
+    settings = get_settings()
+    if not settings.supabase_db_url:
+        raise RuntimeError("Missing SUPABASE_DB_URL")
+
+    sql = """
+    select distinct p.clerk_user_id
+    from public.farmer_fields ff
+    join public.profiles p on p.id = ff.profile_id
+    where p.clerk_user_id is not null
+      and nullif(trim(ff.crop_type), '') is not null
+    order by p.clerk_user_id;
+    """
+
+    with psycopg.connect(settings.supabase_db_url, prepare_threshold=None) as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql)
+            rows = cur.fetchall()
+
+    return [str(row[0]) for row in rows]
+
+
 def upsert_affected_fields(
     report_id: str,
     spread: SpreadResponse,

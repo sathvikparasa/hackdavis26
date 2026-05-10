@@ -17,6 +17,7 @@ export function AlertsMap({
   onSelect,
   onClearSelection,
   focusedLocation,
+  focusedFieldId: _focusedFieldId,
   centerButtonTop: _centerButtonTop,
   layersControlBottom: _layersControlBottom,
 }: {
@@ -30,6 +31,7 @@ export function AlertsMap({
   onSelect: (id: string) => void;
   onClearSelection: () => void;
   focusedLocation: { latitude: number; longitude: number } | null;
+  focusedFieldId?: number | null;
   centerButtonTop?: number;
   layersControlBottom?: number;
 }) {

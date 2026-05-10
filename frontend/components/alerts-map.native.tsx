@@ -135,6 +135,7 @@ function AlertsMapComponent({
   onSelect,
   onClearSelection,
   focusedLocation,
+  focusedFieldId,
   centerButtonTop,
   layersControlBottom = 28,
 }: {
@@ -148,6 +149,7 @@ function AlertsMapComponent({
   onSelect: (id: string) => void;
   onClearSelection: () => void;
   focusedLocation: { latitude: number; longitude: number } | null;
+  focusedFieldId?: number | null;
   centerButtonTop?: number;
   layersControlBottom?: number;
 }) {
@@ -182,6 +184,10 @@ function AlertsMapComponent({
         ),
     [fields]
   );
+  const focusedField = useMemo(
+    () => fields.find((field) => field.id === focusedFieldId) ?? null,
+    [fields, focusedFieldId]
+  );
   const layersMenuBottom = useMemo(() => Animated.add(layersBottomAnim, 56), [layersBottomAnim]);
 
   useEffect(() => {
@@ -191,6 +197,29 @@ function AlertsMapComponent({
       useNativeDriver: false,
     }).start();
   }, [layersBottomAnim, layersControlBottom]);
+
+  useEffect(() => {
+    if (!focusedField) {
+      return;
+    }
+
+    const coordinate = centerFromGeometry(focusedField.geometry);
+    if (!coordinate) {
+      return;
+    }
+
+    setShowFieldsLayer(true);
+    setShowLayersMenu(false);
+    mapRef.current?.animateToRegion(
+      {
+        ...coordinate,
+        latitudeDelta: 0.045,
+        longitudeDelta: 0.055,
+      },
+      520
+    );
+    setShowCenterMapButton(true);
+  }, [focusedField]);
 
   useEffect(() => {
     if (!focusedLocation) {
@@ -263,9 +292,9 @@ function AlertsMapComponent({
             key={fieldPolygon.id}
             coordinates={fieldPolygon.coordinates}
             holes={fieldPolygon.holes}
-            fillColor="rgba(37,99,235,0.38)"
-            strokeColor="#1d4ed8"
-            strokeWidth={2}
+            fillColor={fieldPolygon.fieldId === focusedFieldId ? 'rgba(29,78,216,0.52)' : 'rgba(37,99,235,0.38)'}
+            strokeColor={fieldPolygon.fieldId === focusedFieldId ? '#0f2f91' : '#1d4ed8'}
+            strokeWidth={fieldPolygon.fieldId === focusedFieldId ? 3 : 2}
             tappable={false}
             zIndex={2}
           />
@@ -396,7 +425,7 @@ function geometryToPolygonRings(geometry: Geometry, fieldId: number) {
   }
 
   if (geometry.type === 'MultiPolygon') {
-    return geometry.coordinates.flatMap((polygon, index) => polygonCoordinatesToRings(polygon, `${fieldId}-${index}`));
+    return geometry.coordinates.flatMap((polygon, index) => polygonCoordinatesToRings(polygon, `${fieldId}-${index}`, fieldId));
   }
 
   return [];
@@ -418,7 +447,7 @@ function extractPositions(value: unknown): { latitude: number; longitude: number
   return value.flatMap(extractPositions);
 }
 
-function polygonCoordinatesToRings(coordinates: unknown, id: string) {
+function polygonCoordinatesToRings(coordinates: unknown, id: string, fieldId = Number(id)) {
   if (!Array.isArray(coordinates) || coordinates.length === 0) {
     return [];
   }
@@ -432,7 +461,7 @@ function polygonCoordinatesToRings(coordinates: unknown, id: string) {
     return [];
   }
 
-  return [{ coordinates: outerRing, holes, id }];
+  return [{ coordinates: outerRing, fieldId, holes, id }];
 }
 
 function coordinatesToPositions(value: unknown): { latitude: number; longitude: number }[] {
@@ -461,6 +490,10 @@ export const AlertsMap = memo(
   (prev, next) =>
     prev.alerts === next.alerts &&
     prev.fields === next.fields &&
+    prev.centerButtonTop === next.centerButtonTop &&
+    prev.focusedFieldId === next.focusedFieldId &&
+    prev.layersControlBottom === next.layersControlBottom &&
+    prev.selectedId === next.selectedId &&
     prev.focusedLocation?.latitude === next.focusedLocation?.latitude &&
     prev.focusedLocation?.longitude === next.focusedLocation?.longitude
 );
