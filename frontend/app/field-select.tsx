@@ -1,4 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useAuth } from '@clerk/expo';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -12,7 +14,7 @@ import MapView, { Geojson, PROVIDER_DEFAULT, Region, type GeojsonProps } from 'r
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { FeatureCollection, Geometry } from 'geojson';
 
-import { supabase } from '@/lib/supabase';
+import { createSupabaseWithAccessToken, supabase } from '@/lib/supabase';
 
 type FieldRow = {
   id: number;
@@ -22,6 +24,21 @@ type FieldRow = {
 type VisualField = {
   geometry: Geometry;
   id: number;
+};
+
+type FarmerFieldRow = {
+  crop_type: string | null;
+  field_id: number;
+  fields:
+    | {
+        geometry_simplified: unknown;
+        id: number;
+      }
+    | {
+        geometry_simplified: unknown;
+        id: number;
+      }[]
+    | null;
 };
 
 type LocationSuggestion = {
@@ -100,7 +117,9 @@ const localLocationSuggestions: LocationSuggestion[] = [
 ];
 
 export default function FieldSelectScreen() {
+  const { getToken, isLoaded, isSignedIn } = useAuth();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [activeField, setActiveField] = useState<VisualField | null>(null);
   const [cropByFieldId, setCropByFieldId] = useState<Record<number, string>>({});
   const [cropDraft, setCropDraft] = useState('');
@@ -113,11 +132,39 @@ export default function FieldSelectScreen() {
   const [selectedFieldsById, setSelectedFieldsById] = useState<Record<number, VisualField>>({});
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const getTokenRef = useRef(getToken);
   const lastToggleRef = useRef<{ id: number; time: number } | null>(null);
   const locationAbortRef = useRef<AbortController | null>(null);
   const mapRef = useRef<MapView>(null);
   const requestIdRef = useRef(0);
   const currentRegionRef = useRef<Region>(INITIAL_REGION);
+
+  const authenticatedSupabase = useMemo(
+    () =>
+      createSupabaseWithAccessToken(async () => {
+        try {
+          return await getTokenRef.current({ template: 'supabase' });
+        } catch (tokenError) {
+          console.warn('Unable to load Supabase Clerk token', tokenError);
+          return null;
+        }
+      }),
+    []
+  );
+
+  useEffect(() => {
+    getTokenRef.current = getToken;
+  }, [getToken]);
+
+  const getSupabaseToken = useCallback(async () => {
+    try {
+      return await getTokenRef.current({ template: 'supabase' });
+    } catch (tokenError) {
+      console.warn('Unable to load Supabase Clerk token', tokenError);
+      setError('Could not sync fields. Clerk is missing a JWT template named "supabase".');
+      return null;
+    }
+  }, []);
 
   const loadFieldsForRegion = useCallback(async (region: Region) => {
     const requestId = ++requestIdRef.current;
@@ -179,6 +226,69 @@ export default function FieldSelectScreen() {
       locationAbortRef.current?.abort();
     };
   }, []);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) {
+      setActiveField(null);
+      setCropByFieldId((current) => (Object.keys(current).length === 0 ? current : {}));
+      setSelectedFieldsById((current) => (Object.keys(current).length === 0 ? current : {}));
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadSavedFields() {
+      const token = await getSupabaseToken();
+      if (!token) {
+        return;
+      }
+
+      const { data, error: savedError } = await authenticatedSupabase
+        .from('farmer_fields')
+        .select('field_id,crop_type,fields(id,geometry_simplified)');
+
+      if (cancelled) {
+        return;
+      }
+
+      if (savedError) {
+        setError(savedError.message);
+        return;
+      }
+
+      const nextCrops: Record<number, string> = {};
+      const nextFields: Record<number, VisualField> = {};
+
+      for (const row of (data ?? []) as FarmerFieldRow[]) {
+        const joinedField = Array.isArray(row.fields) ? row.fields[0] : row.fields;
+        if (!joinedField) {
+          continue;
+        }
+
+        const visualField = toVisualField({
+          id: joinedField.id,
+          geometry_simplified: joinedField.geometry_simplified,
+        });
+        if (!visualField) {
+          continue;
+        }
+
+        nextFields[row.field_id] = visualField;
+        if (row.crop_type) {
+          nextCrops[row.field_id] = row.crop_type;
+        }
+      }
+
+      setSelectedFieldsById(nextFields);
+      setCropByFieldId(nextCrops);
+    }
+
+    loadSavedFields();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authenticatedSupabase, getSupabaseToken, isLoaded, isSignedIn]);
 
   useEffect(() => {
     const trimmedQuery = locationQuery.trim();
@@ -254,6 +364,10 @@ export default function FieldSelectScreen() {
   }, []);
 
   const openCropSheet = useCallback((field: VisualField) => {
+    if (!isSignedIn) {
+      return;
+    }
+
     const now = Date.now();
     const lastToggle = lastToggleRef.current;
     if (lastToggle?.id === field.id && now - lastToggle.time < DUPLICATE_TAP_GUARD_MS) {
@@ -264,7 +378,7 @@ export default function FieldSelectScreen() {
     setActiveField(field);
     setCropDraft(cropByFieldId[field.id] ?? '');
     void centerFieldIfCovered(field, mapRef.current, currentRegionRef.current, insets.top);
-  }, [cropByFieldId, insets.top]);
+  }, [cropByFieldId, insets.top, isSignedIn]);
 
   const saveCrop = useCallback(() => {
     if (!activeField) {
@@ -276,10 +390,27 @@ export default function FieldSelectScreen() {
       return;
     }
 
-    setCropByFieldId((prev) => ({ ...prev, [activeField.id]: crop }));
-    setSelectedFieldsById((prev) => ({ ...prev, [activeField.id]: activeField }));
+    const fieldToSave = activeField;
+    setCropByFieldId((prev) => ({ ...prev, [fieldToSave.id]: crop }));
+    setSelectedFieldsById((prev) => ({ ...prev, [fieldToSave.id]: fieldToSave }));
     dismissCropPanel();
-  }, [activeField, cropDraft, dismissCropPanel]);
+
+    getSupabaseToken().then((token) => {
+      if (!token) {
+        return;
+      }
+
+      authenticatedSupabase.rpc('upsert_my_farmer_field', {
+        p_crop_type: crop,
+        p_field_id: fieldToSave.id,
+      })
+      .then(({ error: saveError }) => {
+        if (saveError) {
+          setError(saveError.message);
+        }
+      });
+    });
+  }, [activeField, authenticatedSupabase, cropDraft, dismissCropPanel, getSupabaseToken]);
 
   const removeActiveField = useCallback(() => {
     if (!activeField) {
@@ -298,7 +429,19 @@ export default function FieldSelectScreen() {
       return next;
     });
     dismissCropPanel();
-  }, [activeField, dismissCropPanel]);
+
+    getSupabaseToken().then((token) => {
+      if (!token) {
+        return;
+      }
+
+      authenticatedSupabase.rpc('delete_my_farmer_field', { p_field_id: id }).then(({ error: deleteError }) => {
+        if (deleteError) {
+          setError(deleteError.message);
+        }
+      });
+    });
+  }, [activeField, authenticatedSupabase, dismissCropPanel, getSupabaseToken]);
 
   const handleGeojsonPress = useCallback(
     (event: Parameters<NonNullable<GeojsonProps['onPress']>>[0]) => {
@@ -347,6 +490,17 @@ export default function FieldSelectScreen() {
 
   return (
     <View style={styles.container}>
+      {isLoaded && !isSignedIn ? (
+        <View style={styles.loginGate}>
+          <MaterialIcons name="lock-outline" size={32} color="#1a2e1a" />
+          <Text style={styles.loginTitle}>Log in to use My Fields</Text>
+          <Text style={styles.loginCopy}>Save fields and crop types to your farmer profile.</Text>
+          <Pressable style={styles.loginButton} onPress={() => router.push('/(auth)/sign-in')}>
+            <Text style={styles.loginButtonText}>Log In</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
       <MapView
         ref={mapRef}
         provider={PROVIDER_DEFAULT}
@@ -361,7 +515,7 @@ export default function FieldSelectScreen() {
         <Geojson
           geojson={geojson}
           tappable
-          onPress={handleGeojsonPress}
+          onPress={isSignedIn ? handleGeojsonPress : undefined}
           zIndex={1}
         />
 
@@ -710,6 +864,51 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     marginTop: 6,
+  },
+  loginButton: {
+    alignItems: 'center',
+    backgroundColor: '#2563eb',
+    borderRadius: 14,
+    marginTop: 16,
+    paddingHorizontal: 22,
+    paddingVertical: 13,
+  },
+  loginButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  loginCopy: {
+    color: '#4b5563',
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  loginGate: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    borderColor: '#e5e7eb',
+    borderRadius: 18,
+    borderWidth: 1,
+    left: 24,
+    padding: 20,
+    position: 'absolute',
+    right: 24,
+    shadowColor: '#111827',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.14,
+    shadowRadius: 24,
+    top: '34%',
+    zIndex: 12,
+  },
+  loginTitle: {
+    color: '#111827',
+    fontSize: 19,
+    fontWeight: '900',
+    marginTop: 10,
+    textAlign: 'center',
   },
   map: {
     flex: 1,

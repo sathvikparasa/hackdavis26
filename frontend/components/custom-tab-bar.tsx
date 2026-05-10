@@ -12,7 +12,7 @@ type TabConfig = {
 };
 
 const TAB_CONFIG: TabConfig[] = [
-  { route: 'index',    label: 'Home',    icon: 'home' },
+  { route: 'index',    label: 'My Fields', icon: 'home' },
   { route: 'pest-map', label: 'Map',     icon: 'map' },
   { route: 'report',   label: '',        icon: 'camera-alt', isCenter: true },
   { route: 'alerts',   label: 'Alerts',  icon: 'notifications-none' },

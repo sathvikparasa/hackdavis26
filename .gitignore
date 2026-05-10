@@ -2,6 +2,16 @@
 .mcp.json
 skills-lock.json
 frontend/.vscode/
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+backend/.venv/
+backend/**/__pycache__/
+backend/.pytest_cache/
+tests/**/__pycache__/
 .env.local
 .env
 .env

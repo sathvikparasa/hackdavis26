@@ -1,0 +1,74 @@
+from typing import Optional
+
+from fastapi import FastAPI, File, Form, UploadFile
+
+from app.models import (
+    AnalysisRequest,
+    AnalysisResponse,
+    ReportResponse,
+    SpreadRequest,
+    SpreadResponse,
+    StatusResponse,
+    WeatherContext,
+)
+from app.services.analysis import analyze_report as analyze_report_service
+from app.services.weather_analysis import (
+    get_report_weather_context as get_report_weather_context_service,
+)
+from app.services.reports import submit_report as submit_report_service
+from app.services.spread import calculate_spread as calculate_spread_service
+
+
+app = FastAPI(title="YoloGuard API")
+
+
+@app.get("/health")
+def health() -> StatusResponse:
+    return {"status": "ok"}
+
+
+@app.post("/reports", response_model=ReportResponse)
+async def submit_report(
+    image: UploadFile = File(...),
+    crop_type: str = Form(...),
+    latitude: float = Form(...),
+    longitude: float = Form(...),
+    reporter_user_id: Optional[str] = Form(None),
+) -> ReportResponse:
+    image_bytes = await image.read()
+    return submit_report_service(
+        image_bytes=image_bytes,
+        mime_type=image.content_type or "application/octet-stream",
+        filename=image.filename or "report-image",
+        crop_type=crop_type,
+        latitude=latitude,
+        longitude=longitude,
+        reporter_user_id=reporter_user_id,
+    )
+
+
+@app.post("/analysis", response_model=AnalysisResponse)
+async def analyze_report(
+    image: UploadFile = File(...),
+    crop_type: str = Form(...),
+    latitude: Optional[float] = Form(None),
+    longitude: Optional[float] = Form(None),
+) -> AnalysisResponse:
+    image_bytes = await image.read()
+    return analyze_report_service(
+        image_bytes=image_bytes,
+        mime_type=image.content_type or "application/octet-stream",
+        crop_type=crop_type,
+        latitude=latitude,
+        longitude=longitude,
+    )
+
+
+@app.post("/weather/analysis", response_model=WeatherContext)
+def get_report_weather_context(request: AnalysisRequest) -> WeatherContext:
+    return get_report_weather_context_service(request)
+
+
+@app.post("/spread", response_model=SpreadResponse)
+def calculate_spread(request: SpreadRequest) -> SpreadResponse:
+    return calculate_spread_service(request)
