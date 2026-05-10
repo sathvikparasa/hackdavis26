@@ -1,22 +1,36 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useIsFocused } from '@react-navigation/native';
 import { CameraType, CameraView, FlashMode, useCameraPermissions } from 'expo-camera';
 import { ImageBackground } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  PinchGestureHandler,
+  State,
+  type PinchGestureHandlerGestureEvent,
+  type PinchGestureHandlerStateChangeEvent,
+} from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ReportScreen() {
+  const isFocused = useIsFocused();
   const cameraRef = useRef<CameraView>(null);
+  const zoomStartRef = useRef(0);
   const [permission, requestPermission] = useCameraPermissions();
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
   const [facing, setFacing] = useState<CameraType>('back');
   const [flash, setFlash] = useState<FlashMode>('off');
+  const [zoom, setZoom] = useState(0);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [isTakingPhoto, setIsTakingPhoto] = useState(false);
 
+  function setReportImage(uri: string | null) {
+    setSelectedImageUri(uri);
+  }
+
   async function takePhoto() {
-    if (!cameraRef.current || !isCameraReady || isTakingPhoto) {
+    if (!isFocused || !cameraRef.current || !isCameraReady || isTakingPhoto) {
       return;
     }
 
@@ -26,7 +40,7 @@ export default function ReportScreen() {
         quality: 0.85,
         skipProcessing: false,
       });
-      setSelectedImageUri(photo.uri);
+      setReportImage(photo.uri);
     } finally {
       setIsTakingPhoto(false);
     }
@@ -41,7 +55,7 @@ export default function ReportScreen() {
     });
 
     if (!result.canceled) {
-      setSelectedImageUri(result.assets[0].uri);
+      setReportImage(result.assets[0].uri);
     }
   }
 
@@ -51,8 +65,19 @@ export default function ReportScreen() {
 
   function flipCamera() {
     setFacing((current) => (current === 'back' ? 'front' : 'back'));
-    setSelectedImageUri(null);
+    setReportImage(null);
     setIsCameraReady(false);
+  }
+
+  function handlePinchGesture(event: PinchGestureHandlerGestureEvent) {
+    const nextZoom = zoomStartRef.current + (event.nativeEvent.scale - 1) * 0.35;
+    setZoom(clamp(nextZoom, 0, 1));
+  }
+
+  function handlePinchStateChange(event: PinchGestureHandlerStateChangeEvent) {
+    if (event.nativeEvent.oldState === State.ACTIVE) {
+      zoomStartRef.current = zoom;
+    }
   }
 
   if (!permission) {
@@ -86,9 +111,6 @@ export default function ReportScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.topBar}>
-          <Pressable style={styles.headerIcon} hitSlop={10}>
-            <MaterialIcons name="close" size={26} color="#191C1A" />
-          </Pressable>
           <Text style={styles.headerTitle}>Take Photo</Text>
           <Pressable style={styles.headerIcon} hitSlop={10} onPress={flipCamera}>
             <MaterialIcons name="flip-camera-ios" size={25} color="#191C1A" />
@@ -97,27 +119,43 @@ export default function ReportScreen() {
 
         <Text style={styles.instruction}>Take a clear photo of the pest or damage.</Text>
 
-        <View style={styles.cameraPreview}>
-          {selectedImageUri ? (
-            <ImageBackground
-              source={{ uri: selectedImageUri }}
-              style={styles.cameraFill}
-              contentFit="cover"
-            />
-          ) : (
-            <CameraView
-              ref={cameraRef}
-              style={styles.cameraFill}
-              facing={facing}
-              flash={flash}
-              onCameraReady={() => setIsCameraReady(true)}
-            />
-          )}
-          <View style={[styles.corner, styles.cornerTopLeft]} />
-          <View style={[styles.corner, styles.cornerTopRight]} />
-          <View style={[styles.corner, styles.cornerBottomLeft]} />
-          <View style={[styles.corner, styles.cornerBottomRight]} />
-        </View>
+        <PinchGestureHandler
+          enabled={!selectedImageUri && isFocused}
+          onGestureEvent={handlePinchGesture}
+          onHandlerStateChange={handlePinchStateChange}
+        >
+          <View style={styles.cameraPreview}>
+            {selectedImageUri ? (
+              <ImageBackground
+                source={{ uri: selectedImageUri }}
+                style={styles.cameraFill}
+                contentFit="cover"
+              />
+            ) : !isFocused ? (
+              <View style={[styles.cameraFill, styles.cameraPaused]}>
+                <MaterialIcons name="photo-camera" size={30} color="rgba(255,255,255,0.45)" />
+              </View>
+            ) : (
+              <CameraView
+                ref={cameraRef}
+                style={styles.cameraFill}
+                facing={facing}
+                flash={flash}
+                zoom={zoom}
+                onCameraReady={() => setIsCameraReady(true)}
+              />
+            )}
+            <View style={[styles.corner, styles.cornerTopLeft]} />
+            <View style={[styles.corner, styles.cornerTopRight]} />
+            <View style={[styles.corner, styles.cornerBottomLeft]} />
+            <View style={[styles.corner, styles.cornerBottomRight]} />
+            {!selectedImageUri && isFocused && zoom > 0 ? (
+              <View style={styles.zoomBadge}>
+                <Text style={styles.zoomBadgeText}>{Math.round(1 + zoom * 9)}x</Text>
+              </View>
+            ) : null}
+          </View>
+        </PinchGestureHandler>
 
         <View style={styles.cameraControls}>
           <Pressable style={styles.secondaryControl} onPress={toggleFlash}>
@@ -129,7 +167,7 @@ export default function ReportScreen() {
           </Pressable>
           <Pressable
             style={[styles.shutterOuter, isTakingPhoto && styles.shutterDisabled]}
-            onPress={selectedImageUri ? () => setSelectedImageUri(null) : takePhoto}
+            onPress={selectedImageUri ? () => setReportImage(null) : takePhoto}
           >
             <View style={styles.shutterInner}>
               {selectedImageUri ? (
@@ -168,7 +206,8 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    minHeight: 40,
   },
   headerIcon: {
     width: 40,
@@ -177,6 +216,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 20,
+    position: 'absolute',
+    right: 0,
   },
   headerTitle: {
     fontFamily: 'Outfit_600SemiBold',
@@ -199,6 +240,11 @@ const styles = StyleSheet.create({
   },
   cameraFill: {
     flex: 1,
+  },
+  cameraPaused: {
+    alignItems: 'center',
+    backgroundColor: '#162316',
+    justifyContent: 'center',
   },
   corner: {
     position: 'absolute',
@@ -275,6 +321,24 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#fff',
   },
+  zoomBadge: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(15,26,15,0.72)',
+    borderRadius: 14,
+    bottom: 14,
+    justifyContent: 'center',
+    minWidth: 44,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    position: 'absolute',
+    right: 14,
+  },
+  zoomBadgeText: {
+    color: '#fff',
+    fontFamily: 'Outfit_600SemiBold',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   tipRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -322,3 +386,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
 });
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}

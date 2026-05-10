@@ -902,12 +902,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
-  alertImage: {
-    borderRadius: 12,
-    height: 160,
-    marginTop: 16,
-    width: '100%',
-  },
   metaRow: {
     alignItems: 'center',
     flexDirection: 'row',
