@@ -5,6 +5,8 @@ from fastapi import FastAPI, File, Form, UploadFile
 from app.models import (
     AnalysisRequest,
     AnalysisResponse,
+    RecomputeFarmerFieldsRequest,
+    RecomputeFarmerFieldsResponse,
     ReportResponse,
     SpreadRequest,
     SpreadResponse,
@@ -16,6 +18,7 @@ from app.services.weather_analysis import (
     get_report_weather_context as get_report_weather_context_service,
 )
 from app.services.reports import submit_report as submit_report_service
+from app.services.reports import recompute_farmer_field_alerts as recompute_farmer_field_alerts_service
 from app.services.spread import calculate_spread as calculate_spread_service
 
 
@@ -44,6 +47,18 @@ async def submit_report(
         latitude=latitude,
         longitude=longitude,
         reporter_user_id=reporter_user_id,
+    )
+
+
+@app.post("/farmer-fields/recompute-alerts", response_model=RecomputeFarmerFieldsResponse)
+def recompute_farmer_field_alerts(
+    request: RecomputeFarmerFieldsRequest,
+) -> RecomputeFarmerFieldsResponse:
+    return recompute_farmer_field_alerts_service(
+        reporter_user_id=request.reporter_user_id,
+        field_id=request.field_id,
+        field_ids=request.field_ids,
+        send_notifications=request.send_notifications,
     )
 
 
